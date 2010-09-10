@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <YASM Include="..\..\..\libs\ntdll\bitscan.asm">
+      <FileType>Document</FileType>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../..</IncludePaths>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../..</IncludePaths>
+    </YASM>
+    <YASM Include="..\..\..\libs\ntdll\_chkstk.asm">
+      <FileType>Document</FileType>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../..</IncludePaths>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../..</IncludePaths>
+    </YASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\libs\ntdll\bitmap.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\crc32.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\crt.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\dllmain.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\format.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\heap.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\io.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\ioctl.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\large_int.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\lznt1.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\mm.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\ntdll.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\random.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\registry.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\rtl.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\sd.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\splay.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\str.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\sync.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\thread.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\time.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\timefields.c" />
+    <ClCompile Include="..\..\..\libs\ntdll\version.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\libs\ntdll\ftable.h" />
+    <ClInclude Include="..\..\..\libs\ntdll\ntdll.h" />
+    <ClInclude Include="..\..\..\libs\ntdll\winternl.h" />
+    <ClInclude Include="..\..\..\nt_compat.h" />
+    <ClInclude Include="..\..\..\nt_structs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ntdll.def" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{00D8D5EE-42FD-4DF5-8EAD-F54982EF4AAC}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>ntdll</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\vsyasm.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;NTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../..</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>ntdll.def</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;NTDLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>../../..</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>ntdll.def</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\vsyasm.targets" />
+  </ImportGroup>
+</Project>

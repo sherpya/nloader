@@ -1,0 +1,12 @@
+*~
+*.o
+*.d
+*.so
+*.swp
+*.log
+*.exe
+*.lznt1
+nloader
+lznt1
+disk.img
+.gdbinit
