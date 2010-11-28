@@ -131,8 +131,10 @@ NTSTATUS NTAPI NtDisplayString(PUNICODE_STRING String)
 {
     DECLAREVARCONV(StringA);
     CHECK_POINTER(String);
-
     US2STR(String);
+
+    Log("ntdll.DisplayString(String=%p, Buffer=%p) \"%s\"\n", String, String->Buffer, StringA);
+
     fputs(StringA, stdout);
 
     return STATUS_SUCCESS;

@@ -65,7 +65,7 @@ NTSTATUS NTAPI RtlUnicodeStringToAnsiString(PANSI_STRING DestinationString,
         DestinationString->Buffer[i] = widetoa(SourceString->Buffer[i]);
     DestinationString->Buffer[i] = 0;
 
-    Log("ntdll.RtlUnicodeStringToAnsiString(Alloc=%p) = %s\n", DestinationString->Buffer,
+    Log("ntdll.RtlUnicodeStringToAnsiString(Alloc=%p) = \"%s\"\n", DestinationString->Buffer,
         DestinationString->Buffer);
 
     return STATUS_SUCCESS;
@@ -137,7 +137,7 @@ NTSTATUS NTAPI RtlFindMessage(HMODULE hmod, ULONG type, ULONG lang, ULONG msg_id
 
     CHECK_POINTER(ret);
 
-    Log("ntdll.RtlFindMessage(Id=%d) = ", msg_id);
+    Log("ntdll.RtlFindMessage(LANG=%d, ID=%d) = ", lang, msg_id);
 
     *ret = NULL;
     pe_off = hmod + (*(DWORD *)(hmod + 0x3c));
@@ -200,7 +200,7 @@ NTSTATUS NTAPI RtlFindMessage(HMODULE hmod, ULONG type, ULONG lang, ULONG msg_id
                 else
                     memcpy(message, (*ret)->Text, MIN((*ret)->Length, sizeof(message)));
                 munge(message);
-                Log("\"%s\"\n", message);
+                Log("%p \"%s\"\n", (*ret)->Text, message);
                 return STATUS_SUCCESS;
             }
         }
@@ -273,7 +273,7 @@ VOID NTAPI RtlInitUnicodeString(PUNICODE_STRING DestinationString, LPCWSTR Sourc
     else
         DestinationString->Length = DestinationString->MaximumLength = 0;
 
-    Log("ntdll.RtlInitUnicodeString(\"%s\") -> %p\n", SourceStringA, DestinationString->Buffer);
+    Log("ntdll.RtlInitUnicodeString(%p, \"%s\") -> %p\n", SourceString, SourceStringA, DestinationString);
 }
 
 VOID NTAPI RtlInitAnsiString(PANSI_STRING DestinationString, LPCSTR SourceString)
@@ -462,7 +462,7 @@ NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreIn
     WSTR2STR(Buffer);
     munge(BufferA);
 
-    Log("ntdll.RtlFormatMessage(\"%s\")\n", BufferA);
+    Log("ntdll.RtlFormatMessage(Message=%p, Buffer=%p) \"%s\"\n", Message, Buffer, BufferA);
 
     return STATUS_SUCCESS;
 }
