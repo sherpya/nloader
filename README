@@ -36,7 +36,9 @@ First of all you need a native executable. If you want to run autochk.exe pick
 the one from W7. Threading is not properly implemnted and, for some weird
 reason, all previous versions rely on it.
 
-Then simply execute: ./nloader autochk.exe disk.img
+Then simply execute: ./nloader autochk.exe -p disk.img
+
+NOTE: -p option will force the check even if the disk is not flagged as dirty
 
 You should get something like:
 <snip>
