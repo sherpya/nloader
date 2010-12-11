@@ -10,30 +10,31 @@ TARGETS = nloader lznt1 libs
 YFMT = elf32
 YDBG = dwarf2
 CC = $(shell which ccache 2>/dev/null) gcc
+OS = $(shell uname -s)
 
-ifneq (,$(findstring Linux, $(shell uname -s)))
+ifneq (,$(findstring Linux, $(OS)))
 	TARGETS += disk.img
 	CFLAGS += -fshort-wchar
 	LDFLAGS += -ldl
 	MKSO = $(CC) $(CFLAGS) -shared
-else ifneq (,$(findstring FreeBSD, $(shell uname -s)))
+else ifneq (,$(findstring FreeBSD, $(OS)))
 	TARGETS += disk.img
 	CFLAGS += -fshort-wchar
 	MKSO = $(CC) $(CFLAGS) -shared
 	YFLAGS = -Dstderr=__stderrp
-else ifneq (,$(findstring Darwin, $(shell uname -s)))
+else ifneq (,$(findstring Darwin, $(OS)))
 	CFLAGS += -fshort-wchar -mstackrealign
 	LDFLAGS += -ldl -Wl,-read_only_relocs,suppress,-undefined,dynamic_lookup -single-module
     YFMT = macho32
     YDBG = null
 	MKSO = $(CC) $(CFLAGS) $(LDFLAGS) -dynamiclib
-else ifneq (,$(findstring MINGW32, $(shell uname -s)))
+else ifneq (,$(findstring MINGW32, $(OS)))
 	TARGETS += volumeinfo
 	MKSO = dllwrap --def $(basename $(@F)).def
 	EXE = .exe
 	YFMT = win32
 else
-$(error $(shell uname -s) is not supported)
+$(error $(OS) is not supported)
 endif
 
 #CFLAGS += -DDEBUG_HEAP
