@@ -25,8 +25,8 @@ else ifneq (,$(findstring FreeBSD, $(OS)))
 else ifneq (,$(findstring Darwin, $(OS)))
 	CFLAGS += -fshort-wchar -mstackrealign
 	LDFLAGS += -ldl -Wl,-read_only_relocs,suppress,-undefined,dynamic_lookup -single-module
-    YFMT = macho32
-    YDBG = null
+	YFMT = macho32
+	YDBG = null
 	MKSO = $(CC) $(CFLAGS) $(LDFLAGS) -dynamiclib
 else ifneq (,$(findstring MINGW32, $(OS)))
 	TARGETS += volumeinfo
