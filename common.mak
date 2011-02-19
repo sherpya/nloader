@@ -7,6 +7,8 @@ CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
 
 TARGETS = nloader lznt1 libs
 
+RANLIB = ranlib
+
 YFMT = elf32
 YDBG = dwarf2
 CC = $(shell which ccache 2>/dev/null) gcc
