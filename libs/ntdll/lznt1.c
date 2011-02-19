@@ -153,6 +153,7 @@ NTSTATUS NTAPI RtlDecompressBuffer(USHORT CompressionFormat, PUCHAR Uncompressed
     return RtlDecompressBufferLZNT1(UncompressedBuffer, UncompressedBufferSize, CompressedBuffer, CompressedBufferSize, FinalUncompressedSize);
 }
 
+#ifdef MAIN
 int main(int argc, char *argv[])
 {
     NTSTATUS res;
@@ -201,3 +202,4 @@ int main(int argc, char *argv[])
     free(outbuff);
     return 0;
 }
+#endif

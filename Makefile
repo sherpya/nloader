@@ -20,8 +20,8 @@ clean:
 nloader: nloader.o stubs.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
-lznt1: libs/ntdll/lznt1.o
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+lznt1: libs/ntdll/lznt1.c
+	$(CC) -DMAIN $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 volumeinfo: volumeinfo.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lntdll
