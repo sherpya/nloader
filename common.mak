@@ -19,6 +19,10 @@ ifneq (,$(findstring Linux, $(OS)))
 	CFLAGS += -fshort-wchar
 	LDFLAGS += -ldl
 	MKSO = $(CC) $(CFLAGS) -shared
+ifneq (,$(wildcard autochk.exe))
+	TARGETS += autochk
+	LDALONE = -rdynamic -Wl,--whole-archive -L$(top)/libs/ntdll -lntdll -Wl,--no-whole-archive
+endif
 else ifneq (,$(findstring FreeBSD, $(OS)))
 	TARGETS += disk.img
 	CFLAGS += -fshort-wchar

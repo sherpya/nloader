@@ -1,5 +1,6 @@
 *~
 *.o
+*.a
 *.d
 *.so
 *.swp
@@ -7,6 +8,7 @@
 *.exe
 *.lznt1
 nloader
+autochk
 lznt1
 disk.img
 .gdbinit

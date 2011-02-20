@@ -65,7 +65,7 @@ int main (int argc, char **argv) {
 	return 1;
     }
 
-    ep = setup_nloader(fd, &params, 0);
+    ep = setup_nloader(fd, &params, 1);
 
     ptr = (uint8_t *)(params+1);
     params->ImagePathName.Buffer = (WCHAR *) ptr;

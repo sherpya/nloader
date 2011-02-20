@@ -131,6 +131,9 @@ static inline void *load_library(const char *dllname)
 {
     char libpath[260];
 
+    if (!dllname)
+        return GetModuleHandle(NULL);
+
 #ifdef _MSC_VER
     _snprintf(libpath, sizeof(libpath) - 1, ".\\%s", dllname);
     return LoadLibraryA(libpath);
@@ -223,6 +226,9 @@ static inline void *load_library(const char *dllname)
 {
     char libpath[512];
     void *handle;
+
+    if (!dllname)
+        return dlopen(NULL, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);
 
     snprintf(libpath, sizeof(libpath) - 1, LIBNLOADER"/%s.so", dllname);
     handle = dlopen(libpath, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);

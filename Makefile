@@ -1,7 +1,7 @@
 top=.
 include common.mak
 
-all: $(TARGETS)
+all: libs $(TARGETS)
 
 libs:
 	$(MAKE) -C libs/ntdll
@@ -14,11 +14,14 @@ disk.img:
 	mkntfs -Ff -p 63 -L Native -H 255 -s 512 -S 63 disk.img
 
 clean:
-	rm -f *.o *.d nloader$(EXE) volumeinfo$(EXE) lznt1$(EXE)
+	rm -f *.o *.d nloader$(EXE) autochk volumeinfo$(EXE) lznt1$(EXE)
 	$(MAKE) -C libs/ntdll clean
 
-nloader: nloader.o stubs.o
+nloader: nloader.o loader.o stubs.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+
+autochk: autochk.o loader.o stubs.o | libs autochk.exe
+	$(CC) $(CFLAGS) $(LDALONE) $(LDFLAGS) -o $@ $^
 
 lznt1: libs/ntdll/lznt1.c
 	$(CC) -DMAIN $(CFLAGS) $(LDFLAGS) -o $@ $^
