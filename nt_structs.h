@@ -720,6 +720,8 @@ static inline TEB *NtCurrentTeb(void)
 
 TEB *NtCurrentTeb(VOID);
 #define NtCurrentPeb() NtCurrentTeb()->Peb
+extern int to_ep(void *ep);
+extern void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone);
 
 #include "nt_compat.h"
 

@@ -20,7 +20,10 @@ clean:
 nloader: nloader.o loader.o stubs.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
-autochk: autochk.o loader.o stubs.o | libs autochk.exe
+autochk_blob.o: autochk.exe
+	objcopy -B i386 -I binary -O elf32-i386 $^ $@
+
+autochk: autochk.o loader.o stubs.o autochk_blob.o | libs
 	$(CC) $(CFLAGS) $(LDALONE) $(LDFLAGS) -o $@ $^
 
 lznt1: libs/ntdll/lznt1.c
@@ -29,7 +32,5 @@ lznt1: libs/ntdll/lznt1.c
 volumeinfo: volumeinfo.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lntdll
 
--include volumeinfo.d
--include nloader.d
-
+-include *.d
 .PHONY: all libs clean

@@ -37,8 +37,9 @@
 
 MODULE(main)
 
-extern int to_ep(void *ep);
-extern void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *params, int standalone);
+extern uint8_t autochk_data[] asm("_binary_autochk_exe_start");
+extern uint8_t autochk_data_size[] asm("_binary_autochk_exe_size");
+extern uint8_t autochk_data_end[] asm("_binary_autochk_exe_end");
 
 static jmp_buf sigsegv_env;
 static void sigsegv_handler(int signum)
@@ -46,26 +47,53 @@ static void sigsegv_handler(int signum)
     longjmp(sigsegv_env, 1);
 }
 
+static void usage(void) {
+    printf(
+    "\nautochk.exe cmdline arguments (guessed)\n"
+    " refs:\n"
+    "  - http://www.infocellar.com/winxp/chkdsk-and-autochk.htm\n"
+    "  - http://windows-xp-dox.net/MS.Press-Microsoft.Windows.XP1/prkd_tro_rgwn.htm\n"
+    "  - http://support.microsoft.com/kb/218461\n"
+    "  - http://support.microsoft.com/kb/160963/EN-US/\n"
+    "\n"
+    "autochk.exe [switches] volume | *\n"
+    " * = all volumes, it queries global directory\n"
+    "\n"
+    " -t           - unknown (w7)\n"
+    " -s           - silent execution (w7)\n"
+    " -p           - force check even if dirty bit is not set\n"
+    " -r           - locate and recover bad sectors, implies -p (untested)\n"
+    " -b           - re-evaluates bad clusters on the volume, implies -r (w7)\n"
+    " -x volume    - force dismount (untested), without arguments crashes\n"
+    " -lXX         - with some values like 10 prints info and log size of the volume (the value is mul by 1024)\n"
+    " -l:XX        - tries to set log size, always fails for me saying the size is too small or unable to adjust\n"
+    " -k:volume    - excludes volume from the check (does make sense when using *)\n"
+    " -m           - run chkdsk only if dirty bit is set (default ?)\n"
+    " -i           - Performs a less vigorous check of index entries\n"
+    " -i[:XX]      - XX = 0-50 - unknown\n"
+    " -c           - Skips the checking of cycles within the folder structure\n"
+    "\n"
+    "NOTE: I'm not responsable at all for any damage you can make on your filesystem\n"
+    ". (a dot) means the filesystem is clean, if you want to force the check you should specify -p cmdline option\n"
+    "\n"
+    );
+
+    exit(1);
+}
 
 int main (int argc, char **argv) {
 
-    int fd;
     unsigned int i;
     WCHAR commandline[1024] = L"autochk.exe *";
 
     uint8_t *ptr;
     void *ep;
     RTL_USER_PROCESS_PARAMETERS *params;
+    size_t autochk_size = (size_t)((void *) autochk_data_size);
 
-    const char *executable = (argc > 1) ? argv[1] : "autochk.exe";
+    const char *executable = "autochk.exe";
 
-    fd = open(executable, O_RDONLY | O_BINARY);
-    if(fd<0) {
-	perror("open");
-	return 1;
-    }
-
-    ep = setup_nloader(fd, &params, 1);
+    ep = setup_nloader(autochk_data, autochk_size, &params, 1);
 
     ptr = (uint8_t *)(params+1);
     params->ImagePathName.Buffer = (WCHAR *) ptr;
@@ -76,36 +104,13 @@ int main (int argc, char **argv) {
     params->ImagePathName.Length = i;
     params->ImagePathName.MaximumLength = i + 1;
 
-    // autochk.exe cmdline arguments (guess)
-    // refs:
-    //  - http://www.infocellar.com/winxp/chkdsk-and-autochk.htm
-    //  - http://windows-xp-dox.net/MS.Press-Microsoft.Windows.XP1/prkd_tro_rgwn.htm
-    //  - http://support.microsoft.com/kb/218461
-    //  - http://support.microsoft.com/kb/160963/EN-US/
-
-    // autochk.exe [switches] volume | *
-    // * = all volumes, it queries global directory
-    //
-    // -t           - unknown (w7)
-    // -s           - silent execution (w7)
-    // -p           - force check even if dirty bit is not set
-    // -r           - locate and recover bad sectors, implies -p (untested)
-    // -b           - re-evaluates bad clusters on the volume, implies -r (w7)
-    // -x volume    - force dismount (untested), without arguments crashes
-    // -lXX         - with some values like 10 prints info and log size of the volume (the value is mul by 1024)
-    // -l:XX        - tries to set log size, always fails for me saying the size is too small or unable to adjust
-    // -k:volume    - excludes volume from the check (does make sense when using *)
-    // -m           - run chkdsk only if dirty bit is set (default ?)
-    // -i           - Performs a less vigorous check of index entries
-    // -i[:XX]      - XX = 0-50 - unknown
-    // -c           - Skips the checking of cycles within the folder structure
 
     if (argc > 1)
     {
         int c = params->ImagePathName.Length;
         memcpy(commandline, params->ImagePathName.Buffer, params->ImagePathName.Length * sizeof(WCHAR));
 
-        for (i = 2; i < (unsigned) argc; i++)
+        for (i = 1; i < (unsigned) argc; i++)
         {
             char *arg = argv[i];
             int dev = 0;
@@ -126,6 +131,8 @@ int main (int argc, char **argv) {
         }
         commandline[c++] = 0;
     }
+    else
+        usage();
 
     ptr += sizeof(WCHAR);
     memcpy(ptr, commandline, sizeof(commandline));

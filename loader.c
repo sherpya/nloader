@@ -90,9 +90,12 @@ static void _LogModule(const char *module, const char *format, ...)
     }
 }
 
+
+#define GETB(dest, size) ((offset + size > mod_size) ? NULL : memcpy(dest, mod_start + offset, size), offset += size)
+
 static void _NoLogModule(const char *module, const char *format, ...) {}
 
-void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
+void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
     unsigned int i;
 #ifndef _WIN32
     struct modify_ldt_s fs_ldt;
@@ -102,13 +105,13 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 
     uint32_t pe_off, image_size = 0, min_rva = -1;
     uint8_t *image;
+    off_t offset = 0;
     RTL_USER_PROCESS_PARAMETERS *params;
-    off_t exebase = lseek(fd, 0, SEEK_CUR);
 
-    printf("Stub size :%x\n", sizeof_stub());
+    //printf("Stub size :%x\n", sizeof_stub());
 
     /******************************************************************************************************* MZ HEADER */
-    if(read(fd, &pe_off, sizeof(pe_off)) != sizeof(pe_off)) {
+    if(!GETB(&pe_off, sizeof(pe_off))) {
 	perror("read pe magic");
 	return NULL;
     }
@@ -116,15 +119,15 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 	printf("bad mz magic\n");
 	return NULL;
     }
-    lseek(fd, exebase + 0x3c, SEEK_SET);
-    if(read(fd, &pe_off, sizeof(pe_off)) != sizeof(pe_off)) {
+    offset = 0x3c;
+    if(!GETB(&pe_off, sizeof(pe_off))) {
 	perror("read pe off");
 	return NULL;
     }
 
     /******************************************************************************************************* PE HEADER */
-    lseek(fd, exebase + pe_off, SEEK_SET);
-    if(read(fd, &pe_hdr, sizeof(pe_hdr)) != sizeof(pe_hdr)) {
+    offset = pe_off;
+    if(!GETB(&pe_hdr, sizeof(pe_hdr))) {
 	perror("read pe hdr");
 	return NULL;
     }
@@ -146,7 +149,7 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
     }
 
     /******************************************************************************************************* OPT HEADER */
-    if(read(fd, &pe_opt, sizeof(pe_opt)) != sizeof(pe_opt)) {
+    if(!GETB(&pe_opt, sizeof(pe_opt))) {
 	perror("read pe opt");
 	return NULL;
     }
@@ -172,7 +175,7 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
     }
 
     /******************************************************************************************************* SECTIONS - mapping */
-    if(read(fd, sections, sizeof(sections[0]) * pe_hdr.NumberOfSections) != sizeof(sections[0]) * pe_hdr.NumberOfSections) {
+    if(!GETB(sections, sizeof(sections[0]) * pe_hdr.NumberOfSections)) {
 	perror("read sections");
 	return NULL;
     }
@@ -200,8 +203,8 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 
 	memcpy(name, sections[i].Name, 8);
 	name[8] = '\0';
-	lseek(fd, exebase + raw, SEEK_SET);
-	if(read(fd, image + rva, rsz) != rsz) {
+    offset = raw;
+	if(!GETB(image + rva, rsz)) {
 	    perror("read section");
 	    return NULL;
 	}
@@ -240,7 +243,7 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 	    printf("Loading library %s.so failed with %s, aborting\n", dllname, dlerror());
 	    return NULL;
 	}
-	else
+	else if (!standalone)
 	    printf("Loading %s.so and resolving imports\n", dllname);
 
 	/******************************************************************************************************* IAT - functions */
@@ -320,7 +323,7 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 	    } else
 		api_addr = NULL;
 	    import_addrs[nfuncs-1] = api_addr;
- 	    printf("- %s%s\n", fname, api_addr ? "" : " (stub)");
+ 	    if (!standalone) printf("- %s%s\n", fname, api_addr ? "" : " (stub)");
 	    if(free_impname)
 		free(impname);
 
@@ -366,9 +369,9 @@ void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalon
 
 
     /******************************************************************************************************* MZ - mapping */
-    lseek(fd, exebase, SEEK_SET);
+    offset = 0;
     pe_off = (min_rva < pe_off + pe_opt.SizeOfHeaders) ? min_rva : pe_off + pe_opt.SizeOfHeaders;
-    if(read(fd, image, pe_off) != pe_off) {
+    if(!GETB(image, pe_off)) {
 	perror("read header");
 	return NULL;
     }

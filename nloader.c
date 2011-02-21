@@ -37,9 +37,6 @@
 
 MODULE(main)
 
-extern int to_ep(void *ep);
-extern void *setup_nloader(int fd, PRTL_USER_PROCESS_PARAMETERS *params, int standalone);
-
 static jmp_buf sigsegv_env;
 static void sigsegv_handler(int signum)
 {
@@ -54,7 +51,8 @@ int main (int argc, char **argv) {
     WCHAR commandline[1024] = L"autochk.exe *";
 
     uint8_t *ptr;
-    void *ep;
+    void *ep, *exe;
+    struct stat st;
     RTL_USER_PROCESS_PARAMETERS *params;
 
     const char *executable = (argc > 1) ? argv[1] : "autochk.exe";
@@ -65,7 +63,20 @@ int main (int argc, char **argv) {
 	return 1;
     }
 
-    ep = setup_nloader(fd, &params, 0);
+    if(fstat(fd, &st)<0) {
+	perror("fstat");
+	return 1;
+    }
+
+    exe = malloc(st.st_size);
+    if(read(fd, exe, st.st_size) != st.st_size) {
+	perror("read");
+	free(exe);
+	return 1;
+    }
+
+    ep = setup_nloader(exe, st.st_size, &params, 0);
+    free(exe);
 
     ptr = (uint8_t *)(params+1);
     params->ImagePathName.Buffer = (WCHAR *) ptr;

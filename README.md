@@ -33,6 +33,10 @@ How to compile
 You need GNU make (sometimes called gmake) and yasm.
 Simply run make from the top source directory.
 
+If you are on Linux OS and provide an autochk.exe by placing it at the toplevel
+directory, the makefile will make for you a standalone executable that also contains
+the native Windows executable, suitable for a Live CD.
+
 
 How to run
 ----------
