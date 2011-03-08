@@ -5,6 +5,11 @@ CFLAGS += -MD -MP
 CFLAGS += -O0 -g3 -Wall
 CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
 
+ifdef RELEASE
+CFLAGS  += -O2
+LDFLAGS += -s
+endif
+
 TARGETS = nloader lznt1 libs
 
 RANLIB = ranlib
