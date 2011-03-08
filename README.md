@@ -37,6 +37,15 @@ If you are on Linux OS and provide an autochk.exe by placing it at the toplevel
 directory, the makefile will make for you a standalone executable that also contains
 the native Windows executable, suitable for a Live CD.
 
+You can find a suitable autochk.exe directly in windows 7 sp1 x86 (KB976932).
+Just download windows6.1-KB976932-X86.exe (unfortunately you can only pick the link
+after verifying that your windows is genuine - wow!).
+
+Then you can pick directly the needed executable with cabextract:
+<pre>
+cabextract -p -F "*autochk.exe" windows6.1-KB976932-X86.exe > autochk.exe
+</pre>
+
 
 How to run
 ----------
