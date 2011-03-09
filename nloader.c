@@ -52,8 +52,8 @@ int main (int argc, char **argv) {
     unsigned int i;
     WCHAR commandline[1024] = L"autochk.exe *";
 
-    uint8_t *ptr;
-    void *ep, *exe;
+    uint8_t *ptr, *exe;
+    void *ep;
     struct stat st;
     RTL_USER_PROCESS_PARAMETERS *params;
 

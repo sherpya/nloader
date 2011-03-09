@@ -18,6 +18,9 @@
     <ClCompile Include="..\nloader.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\loader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <YASM Include="..\stubs.asm">

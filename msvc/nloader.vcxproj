@@ -79,6 +79,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\loader.c" />
     <ClCompile Include="..\nloader.c" />
   </ItemGroup>
   <ItemGroup>

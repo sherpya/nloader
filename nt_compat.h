@@ -51,6 +51,7 @@ typedef struct _SYSTEM_INFO
 } SYSTEM_INFO, *LPSYSTEM_INFO;
 
 DECLSPEC_IMPORT LPVOID WINAPI LoadLibraryA(LPCSTR);
+DECLSPEC_IMPORT HANDLE WINAPI GetModuleHandleA(LPCSTR);
 DECLSPEC_IMPORT FARPROC WINAPI GetProcAddress(LPVOID, LPCSTR);
 DECLSPEC_IMPORT DWORD WINAPI GetLastError(VOID);
 DECLSPEC_IMPORT VOID WINAPI SetLastError(DWORD);
@@ -132,7 +133,7 @@ static inline void *load_library(const char *dllname)
     char libpath[260];
 
     if (!dllname)
-        return GetModuleHandle(NULL);
+        return GetModuleHandleA(NULL);
 
 #ifdef _MSC_VER
     _snprintf(libpath, sizeof(libpath) - 1, ".\\%s", dllname);

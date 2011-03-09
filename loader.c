@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "nt_structs.h"
 
@@ -91,11 +92,11 @@ static void _LogModule(const char *module, const char *format, ...)
 }
 
 
-#define GETB(dest, size) ((offset + size > mod_size) ? NULL : memcpy(dest, mod_start + offset, size), offset += size)
+#define GETB(dest, size) ((offset + size > mod_size) ? NULL : memcpy(dest, (mod_start + offset), size), offset += size)
 
 static void _NoLogModule(const char *module, const char *format, ...) {}
 
-void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
+void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
     unsigned int i;
 #ifndef _WIN32
     struct modify_ldt_s fs_ldt;
@@ -567,7 +568,7 @@ void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETE
 #else
     teb = NtCurrentTeb();
     teb->SharedUserData = (PKUSER_SHARED_DATA) USER_SHARED_DATA;
-    params = NtCurrentPeb()->ProcessParameters;
+    *pparams = params = NtCurrentPeb()->ProcessParameters;
 #endif
 
     /* needed for RtlFindMessage */
