@@ -422,6 +422,7 @@ void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETE
     }
 
     /******************************************************************************************************* TEB setup - map teb to fs:0 */
+    memset(&fs_ldt, 0, sizeof(fs_ldt));
     fs_ldt.entry_number = TEB_SEL_IDX;
     fs_ldt.base_addr = (unsigned long)teb;
     fs_ldt.limit = 1;
@@ -438,14 +439,16 @@ void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETE
 
     /* FIXME - fill in TEB data, SEH chain, PEB, etc here */
     teb->NtTib.ExceptionList = NULL; // filled
-    teb->NtTib.StackBase = (void *)0x230000;
-    teb->NtTib.StackLimit = teb->NtTib.StackBase - PESALIGN(pe_opt.SizeOfStackReserve, getpagesize());
-    teb->NtTib.StackLimit = mmap(teb->NtTib.StackLimit, PESALIGN(pe_opt.SizeOfStackReserve, getpagesize()), PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+
+    /* setup stack */
+    teb->NtTib.StackLimit = mmap(NULL, PESALIGN(pe_opt.SizeOfStackReserve, getpagesize()), PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     if(teb->NtTib.StackLimit == MAP_FAILED) {
 	perror("mmap stack");
 	return NULL;
     }
+
+    teb->NtTib.StackBase = teb->NtTib.StackLimit + PESALIGN(pe_opt.SizeOfStackReserve, getpagesize());
 
     teb->NtTib.SubSystemTib = NULL;
     teb->NtTib.Version = 7680; // on my XP 64bit (sizeof of the whole struct ? */
@@ -527,7 +530,6 @@ void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETE
     /* ImagePathName and CommandLine filled later */
 
     peb.SubSystemData = NULL;
-    peb.ProcessHeap = HANDLE_HEAP;
     peb.EnvironmentUpdateCount = 1;
 
     /******************************************************************************************************* KUSER_SHARED_DATA (0x7ffe0000) */
@@ -542,6 +544,10 @@ void *setup_nloader(void *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETE
     teb->SharedUserData->TickCount.High2Time = 0x1337;
     teb->SharedUserData->TickCount.High1Time = 0x1337;
     teb->SharedUserData->Cookie = 0x1337;
+
+    /* autochk expects to have a valid ptr for peb.ProcessHeap, but valgrind still complains */
+    teb->SharedUserData->Reserved1 = (ULONG) HANDLE_HEAP;
+    peb.ProcessHeap = &teb->SharedUserData->Reserved1;
 
     teb->SharedUserData->NtProductType = NtProductWinNt;
     teb->SharedUserData->ProductTypeIsValid = TRUE;
