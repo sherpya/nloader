@@ -61,19 +61,19 @@ LONGLONG NTAPI _allmul(LONGLONG a, LONGLONG b)
 
 ULONGLONG NTAPI _aullshr(ULONGLONG a, LONG b)
 {
-    Log("ntll._aullshr(%llu, %d) = %llu [ %llu >> %d ]\n", a, b, a >> b, a, b);
+    Log("ntdll._aullshr(%llu, %d) = %llu [ %llu >> %d ]\n", a, b, a >> b, a, b);
     return a >> b;
 }
 
 LONGLONG NTAPI _allshl(LONGLONG a, LONG b)
 {
-    Log("ntll._allshr(%lld, %d) = %lld [ %llu >> %d ]\n", a, b, a << b, a, b);
+    Log("ntdll._allshr(%lld, %d) = %lld [ %llu >> %d ]\n", a, b, a << b, a, b);
     return a << b;
 }
 
 LONGLONG NTAPI RtlExtendedIntegerMultiply(LONGLONG a, INT b)
 {
-    Log("ntll.RtlExtendedIntegerMultiply(%lld, %d) = %lld [ %lld * %d ]\n", a, b, a * b, a, b);
+    Log("ntdll.RtlExtendedIntegerMultiply(%lld, %d) = %lld [ %lld * %d ]\n", a, b, a * b, a, b);
     return a * b;
 }
 
@@ -82,13 +82,13 @@ ULONGLONG NTAPI RtlLargeIntegerDivide(ULONGLONG a, ULONGLONG b, ULONGLONG *rem)
     ULONGLONG ret = a / b;
     if (rem)
         *rem = a - ret * b;
-    Log("ntll.RtlLargeIntegerDivide(%llu, %llu) = %llu, %%llu [ %llu / %llu ]\n", a, b, ret, a - ret * b,  a, b);
+    Log("ntdll.RtlLargeIntegerDivide(%llu, %llu) = %llu, %%llu [ %llu / %llu ]\n", a, b, ret, a - ret * b,  a, b);
     return ret;
 }
 
 /* hmm why LARGE_INTEGER crashes? */
 int64_t /*LARGE_INTEGER*/ NTAPI RtlConvertLongToLargeInteger(LONG SignedInteger)
 {
-    Log("ntll.RtlConvertLongToLargeInteger(%d)\n", SignedInteger);
+    Log("ntdll.RtlConvertLongToLargeInteger(%d)\n", SignedInteger);
     return SignedInteger;
 }
