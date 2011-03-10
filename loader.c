@@ -531,6 +531,7 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
     /* ImagePathName and CommandLine filled later */
 
     peb.SubSystemData = NULL;
+    peb.ProcessHeap = HANDLE_HEAP;
     peb.EnvironmentUpdateCount = 1;
 
     /******************************************************************************************************* KUSER_SHARED_DATA (0x7ffe0000) */
@@ -545,10 +546,6 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
     teb->SharedUserData->TickCount.High2Time = 0x1337;
     teb->SharedUserData->TickCount.High1Time = 0x1337;
     teb->SharedUserData->Cookie = 0x1337;
-
-    /* autochk expects to have a valid ptr for peb.ProcessHeap, but valgrind still complains */
-    teb->SharedUserData->Reserved1 = (ULONG) HANDLE_HEAP;
-    peb.ProcessHeap = &teb->SharedUserData->Reserved1;
 
     teb->SharedUserData->NtProductType = NtProductWinNt;
     teb->SharedUserData->ProductTypeIsValid = TRUE;
