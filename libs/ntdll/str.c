@@ -68,6 +68,8 @@ const char *strctl(ULONG ControlCode)
             return "IOCTL_DISK_GET_PARTITION_INFO";
         case IOCTL_DISK_SET_PARTITION_INFO:
             return "IOCTL_DISK_SET_PARTITION_INFO";
+        case IOCTL_DISK_GET_DRIVE_LAYOUT:
+            return "IOCTL_DISK_GET_DRIVE_LAYOUT";
         case IOCTL_DISK_GET_DRIVE_GEOMETRY:
             return "IOCTL_DISK_GET_DRIVE_GEOMETRY";
         case IOCTL_DISK_IS_WRITABLE:

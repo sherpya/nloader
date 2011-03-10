@@ -458,6 +458,23 @@ NTSTATUS NTAPI NtDeviceIoControlFile(HANDLE FileHandle, HANDLE Event, PIO_APC_RO
             IoStatusBlock->u.Status = STATUS_SUCCESS;
             break;
         }
+        case IOCTL_DISK_GET_DRIVE_LAYOUT:       /* 0x0007400c */
+        {
+            DRIVE_LAYOUT_INFORMATION *dl = OutputBuffer;
+            CTL_CHECK_SIZE(sizeof(DRIVE_LAYOUT_INFORMATION) + sizeof(PARTITION_INFORMATION));
+            memset(dl, 0, sizeof(DRIVE_LAYOUT_INFORMATION));
+            dl->PartitionCount = 4;
+            dl->Signature = 0;
+
+            NtDeviceIoControlFile(FileHandle, NULL, NULL, NULL, IoStatusBlock, IOCTL_DISK_GET_PARTITION_INFO,
+                NULL, 0, &dl->PartitionEntry[0], sizeof(PARTITION_INFORMATION));
+
+            memset(&dl->PartitionEntry[1], 0, sizeof(PARTITION_INFORMATION) * 3);
+
+            IoStatusBlock->Information = sizeof(DRIVE_LAYOUT_INFORMATION) + sizeof(PARTITION_INFORMATION);
+            IoStatusBlock->u.Status = STATUS_SUCCESS;
+            break;
+        }
         case IOCTL_DISK_GET_DRIVE_LAYOUT_EX:    /* 0x00070050 */
         {
             DRIVE_LAYOUT_INFORMATION_EX *dlex = OutputBuffer;
