@@ -100,7 +100,7 @@ WCHAR NTAPI RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)
     WCHAR unichar = L' ';
     if ((**SourceCharacter & 0x80) == 0)
         unichar = **SourceCharacter;
-        
+
     Log("ntdll.RtlAnsiCharToUnicodeChar('%c')\n", **SourceCharacter);
     return unichar;
 }
