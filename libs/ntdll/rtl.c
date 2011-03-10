@@ -120,7 +120,6 @@ NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
     else if (len > DestinationString->MaximumLength)
         return STATUS_BUFFER_OVERFLOW;
 
-
     for (i = 0; i < len / sizeof(WCHAR); i++)
         DestinationString->Buffer[i] = UpcaseTable[SourceString->Buffer[i]];
 
