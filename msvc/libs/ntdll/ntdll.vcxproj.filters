@@ -112,6 +112,9 @@
     <YASM Include="..\..\..\libs\ntdll\_chkstk.asm">
       <Filter>Source Files</Filter>
     </YASM>
+    <YASM Include="..\..\..\libs\ntdll\_aulldvrm.asm">
+      <Filter>Source Files</Filter>
+    </YASM>
   </ItemGroup>
   <ItemGroup>
     <None Include="ntdll.def">

@@ -16,6 +16,11 @@
       <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../..</IncludePaths>
       <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../..</IncludePaths>
     </YASM>
+    <YASM Include="..\..\..\libs\ntdll\_aulldvrm.asm">
+      <FileType>Document</FileType>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../..</IncludePaths>
+      <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../..</IncludePaths>
+    </YASM>
     <YASM Include="..\..\..\libs\ntdll\_chkstk.asm">
       <FileType>Document</FileType>
       <IncludePaths Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../..</IncludePaths>

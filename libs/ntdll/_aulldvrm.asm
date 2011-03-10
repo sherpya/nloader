@@ -33,6 +33,7 @@
 ; * SUCH DAMAGE.
 
 %include "asmdefs.inc"
+
 cfunction _aulldvrm
 
 ; ulldvrm - unsigned long divide and remainder

@@ -4,6 +4,9 @@ EXPORTS
 ; _chkstk.asm
 _chkstk
 
+; _aulldvrm.asm
+_aulldvrm
+
 ; bitmap.c
 RtlAreBitsClear
 RtlAreBitsSet
@@ -144,6 +147,7 @@ RtlWriteRegistryValue
 
 ; rtl.c
 RtlAdjustPrivilege
+RtlAnsiCharToUnicodeChar
 RtlAnsiStringToUnicodeString
 RtlDosPathNameToNtPathName_U
 RtlEqualUnicodeString
