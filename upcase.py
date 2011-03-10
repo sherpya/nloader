@@ -33,7 +33,7 @@ if __name__ == '__main__':
     values = ', '.join(values)
 
     table  = '// Unicode UpperCase Table, automatically generated\n\n'
-    table += 'static const WCHAR UpcaseTable[65536] = \n{\n    '
+    table += 'static const WCHAR UpcaseTable[65536] =\n{\n    '
     table += '\n    '.join(textwrap.wrap(values, 72))
     table += '\n};\n'
     open('libs/ntdll/upcasetable.h', 'wb').write(table)
