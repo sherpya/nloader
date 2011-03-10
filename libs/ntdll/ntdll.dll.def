@@ -76,6 +76,7 @@ RtlSizeHeap=RtlSizeHeap@12
 ; large_int.c
 RtlExtendedIntegerMultiply=RtlExtendedIntegerMultiply@12
 RtlLargeIntegerDivide=RtlLargeIntegerDivide@20
+RtlConvertLongToLargeInteger=RtlConvertLongToLargeInteger@4
 _alldiv=_alldiv@16
 _allmul=_allmul@16
 _allrem=_allrem@16

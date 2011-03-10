@@ -85,3 +85,10 @@ ULONGLONG NTAPI RtlLargeIntegerDivide(ULONGLONG a, ULONGLONG b, ULONGLONG *rem)
     Log("ntll.RtlLargeIntegerDivide(%llu, %llu) = %llu, %%llu [ %llu / %llu ]\n", a, b, ret, a - ret * b,  a, b);
     return ret;
 }
+
+/* hmm why LARGE_INTEGER crashes? */
+int64_t /*LARGE_INTEGER*/ NTAPI RtlConvertLongToLargeInteger(LONG SignedInteger)
+{
+    Log("ntll.RtlConvertLongToLargeInteger(%d)\n", SignedInteger);
+    return SignedInteger;
+}
