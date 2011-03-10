@@ -95,6 +95,12 @@ int main (int argc, char **argv) {
 
     ep = setup_nloader(autochk_data, autochk_size, &params, 1);
 
+    if (!ep)
+    {
+        fprintf(stderr, "setup_nloader failed\n");
+        return 1;
+    }
+
     ptr = (uint8_t *)(params+1);
     params->ImagePathName.Buffer = (WCHAR *) ptr;
 

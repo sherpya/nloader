@@ -80,6 +80,11 @@ int main (int argc, char **argv) {
     ep = setup_nloader(exe, st.st_size, &params, 0);
     free(exe);
 
+    if (!ep) {
+	fprintf(stderr, "setup_nloader failed\n");
+	return 1;
+    }
+
     ptr = (uint8_t *)(params+1);
     params->ImagePathName.Buffer = (WCHAR *) ptr;
 
