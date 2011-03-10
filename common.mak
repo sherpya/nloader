@@ -22,6 +22,7 @@ OS = $(shell uname -s)
 ifneq (,$(findstring Linux, $(OS)))
 	TARGETS += disk.img
 	CFLAGS += -fshort-wchar
+	CFLAGS += -Werror
 	LDFLAGS += -ldl
 	MKSO = $(CC) $(CFLAGS) -shared
 ifneq (,$(wildcard autochk.exe))

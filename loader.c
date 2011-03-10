@@ -104,7 +104,7 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 #endif
     TEB *teb;
 
-    uint32_t pe_off, image_size = 0, min_rva = -1;
+    uint32_t pe_off = 0, image_size = 0, min_rva = -1;
     uint8_t *image;
     off_t offset = 0;
     RTL_USER_PROCESS_PARAMETERS *params;
