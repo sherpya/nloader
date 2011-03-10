@@ -95,6 +95,7 @@ NTSTATUS NTAPI RtlAnsiStringToUnicodeString(PUNICODE_STRING DestinationString,
     return STATUS_SUCCESS;
 }
 
+// supposing ANSI system code page
 WCHAR NTAPI RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)
 {
     WCHAR unichar = L' ';
@@ -102,6 +103,7 @@ WCHAR NTAPI RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)
         unichar = **SourceCharacter;
 
     Log("ntdll.RtlAnsiCharToUnicodeChar('%c')\n", **SourceCharacter);
+    *SourceCharacter += sizeof(UCHAR);
     return unichar;
 }
 
