@@ -146,6 +146,7 @@ RtlWriteRegistryValue=RtlWriteRegistryValue@24
 ; rtl.c
 RtlAdjustPrivilege=RtlAdjustPrivilege@16
 RtlAnsiStringToUnicodeString=RtlAnsiStringToUnicodeString@12
+RtlAnsiCharToUnicodeChar=RtlAnsiCharToUnicodeChar@4
 RtlDosPathNameToNtPathName_U=RtlDosPathNameToNtPathName_U@16
 RtlEqualUnicodeString=RtlEqualUnicodeString@12
 RtlExpandEnvironmentStrings_U=RtlExpandEnvironmentStrings_U@16

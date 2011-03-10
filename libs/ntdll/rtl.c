@@ -95,6 +95,16 @@ NTSTATUS NTAPI RtlAnsiStringToUnicodeString(PUNICODE_STRING DestinationString,
     return STATUS_SUCCESS;
 }
 
+WCHAR NTAPI RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)
+{
+    WCHAR unichar = L' ';
+    if ((**SourceCharacter & 0x80) == 0)
+        unichar = **SourceCharacter;
+        
+    Log("ntdll.RtlAnsiCharToUnicodeChar('%c')\n", **SourceCharacter);
+    return unichar;
+}
+
 VOID NTAPI RtlFreeAnsiString(PANSI_STRING AnsiString)
 {
     if (RtlSizeHeap(HANDLE_HEAP, 0, AnsiString->Buffer) != AnsiString->MaximumLength)
