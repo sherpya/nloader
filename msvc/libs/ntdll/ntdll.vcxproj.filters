@@ -101,6 +101,9 @@
     <ClInclude Include="..\..\..\nt_structs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\libs\ntdll\upcasetable.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <YASM Include="..\..\..\libs\ntdll\bitscan.asm">

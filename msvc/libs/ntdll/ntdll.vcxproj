@@ -50,6 +50,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\libs\ntdll\ftable.h" />
     <ClInclude Include="..\..\..\libs\ntdll\ntdll.h" />
+    <ClInclude Include="..\..\..\libs\ntdll\upcasetable.h" />
     <ClInclude Include="..\..\..\libs\ntdll\winternl.h" />
     <ClInclude Include="..\..\..\nt_compat.h" />
     <ClInclude Include="..\..\..\nt_structs.h" />

@@ -28,6 +28,7 @@
 #include "ntdll.h"
 #include <stdarg.h>
 #include <ctype.h>
+#include "upcasetable.h"
 
 MODULE(rtl)
 
@@ -108,21 +109,25 @@ VOID NTAPI RtlFreeAnsiString(PANSI_STRING AnsiString)
 NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
     PCUNICODE_STRING SourceString, BOOLEAN AllocateDestinationString)
 {
-    int i;
-    DECLAREVARCONV(SourceStringA);
-    USHORT len = SourceString->Length / sizeof(WCHAR);
+    USHORT i, len = SourceString->Length;
 
     if (AllocateDestinationString)
-        DestinationString->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, SourceString->MaximumLength);
+    {
+        DestinationString->MaximumLength = len;
+        if (!(DestinationString->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, len)))
+                return STATUS_NO_MEMORY;
+    }
+    else if (len > DestinationString->MaximumLength)
+        return STATUS_BUFFER_OVERFLOW;
 
-    DestinationString->Length = SourceString->Length;
-    DestinationString->MaximumLength = SourceString->MaximumLength;
 
-    for (i = 0; i < len; i++)
-        DestinationString->Buffer[i] = widetou(SourceString->Buffer[i]);
+    for (i = 0; i < len / sizeof(WCHAR); i++)
+        DestinationString->Buffer[i] = UpcaseTable[SourceString->Buffer[i]];
 
-    US2STR(SourceString);
-    Log("ntdll.RtlUpcaseUnicodeString(\"%s\", %d)\n", SourceStringA, AllocateDestinationString);
+    DestinationString->Length = len;
+
+    Log("ntdll.RtlUpcaseUnicodeString(%p, %p, %d)\n", SourceString->Buffer, DestinationString->Buffer, AllocateDestinationString);
+
     return STATUS_SUCCESS;
 }
 
