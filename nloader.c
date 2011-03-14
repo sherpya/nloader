@@ -73,10 +73,12 @@ int main (int argc, char **argv) {
     exe = malloc(st.st_size);
     if(read(fd, exe, st.st_size) != st.st_size) {
 	perror("read");
+	close(fd);
 	free(exe);
 	return 1;
     }
 
+    close(fd);
     ep = setup_nloader(exe, st.st_size, &params, 0);
     free(exe);
 
