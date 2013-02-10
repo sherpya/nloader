@@ -139,6 +139,7 @@ NTSTATUS NTAPI NtDisplayString(PUNICODE_STRING String)
 
     return STATUS_SUCCESS;
 }
+FORWARD_FUNCTION(NtDisplayString, NtDrawText); // Windows 8
 
 VOID NTAPI DbgBreakPoint(void)
 {

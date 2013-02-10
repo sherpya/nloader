@@ -101,6 +101,7 @@ NtDelayExecution=NtDelayExecution@8
 NtDeleteFile=NtDeleteFile@4
 NtDeviceIoControlFile=NtDeviceIoControlFile@40
 NtDisplayString=NtDisplayString@4
+NtDrawText=NtDrawText@4
 NtFlushBuffersFile=NtFlushBuffersFile@8
 NtCancelIoFile=NtCancelIoFile@8
 NtFreeVirtualMemory=NtFreeVirtualMemory@16
