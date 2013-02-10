@@ -16,7 +16,9 @@ RANLIB = ranlib
 
 YFMT = elf32
 YDBG = dwarf2
+ifdef USE_CCACHE
 CC := $(shell which ccache 2>/dev/null) $(CC)
+endif
 OS = $(shell uname -s)
 
 ifneq (,$(findstring Linux, $(OS)))
