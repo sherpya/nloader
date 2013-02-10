@@ -13,6 +13,7 @@ endif
 TARGETS = nloader lznt1 libs
 
 RANLIB = ranlib
+MKNTFS = PATH=$(PATH):/sbin:/usr/sbin mkntfs
 
 YFMT = elf32
 YDBG = dwarf2
