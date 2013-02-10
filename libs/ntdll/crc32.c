@@ -84,3 +84,9 @@ DWORD NTAPI RtlComputeCrc32(DWORD dwInitial, const BYTE *pData, INT iLen)
     }
     return ~crc;
 }
+
+// Windows 8 - RtlComputeCrc32() ?
+DWORD NTAPI RtlCrc32(const BYTE *pData, INT iLen, DWORD dwInitial)
+{
+    return RtlComputeCrc32(dwInitial, pData, iLen);
+}

@@ -27,6 +27,10 @@ RtlTestBit=RtlTestBit@8
 
 ; crc32.c
 RtlComputeCrc32=RtlComputeCrc32@12
+RtlCrc32@12
+
+; crc64.c
+RtlCrc64@16
 
 ; crt.c
 rpl__stricmp=stricmp
