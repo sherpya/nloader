@@ -244,6 +244,11 @@ NTSTATUS NTAPI RtlQueryRegistryValues(ULONG RelativeTo, PCWSTR Path, PRTL_QUERY_
     return result;
 }
 
+/*  Windows8 drivers use this new function as much as possible.
+    If driver calls new function and the registy key is untrusted,
+    it would cause BugCheck = KERNEL_SECURITY_CHECK_FAILURE */
+FORWARD_FUNCTION(RtlQueryRegistryValues, RtlQueryRegistryValuesEx);
+
 NTSTATUS NTAPI RtlWriteRegistryValue(IN ULONG RelativeTo, IN PCWSTR Path, IN PCWSTR ValueName,
     IN ULONG ValueType, IN PVOID ValueData, IN ULONG ValueLength)
 {

@@ -141,6 +141,7 @@ NtOpenKey=NtOpenKey@12
 NtQueryValueKey=NtQueryValueKey@24
 NtSetValueKey=NtSetValueKey@24
 RtlQueryRegistryValues=RtlQueryRegistryValues@20
+RtlQueryRegistryValuesEx=RtlQueryRegistryValuesEx@20
 RtlWriteRegistryValue=RtlWriteRegistryValue@24
 
 ; rtl.c
