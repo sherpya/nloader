@@ -507,6 +507,22 @@ NTSTATUS NTAPI NtFlushBuffersFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBl
 }
 FORWARD_FUNCTION(NtFlushBuffersFile, ZwFlushBuffersFile);
 
+// Windows 8
+NTSTATUS NTAPI NtCancelIoFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock)
+{
+    CHECK_HANDLE(FileHandle, HANDLE_FILE);
+    CHECK_POINTER(IoStatusBlock);
+
+    Log("ntdll.NtCancelIoFile(\"%s\")\n", strhandle(FileHandle));
+
+    if (!IsValidHandle(FileHandle->file.fh))
+        return (IoStatusBlock->u.Status = STATUS_INVALID_HANDLE);
+
+    IoStatusBlock->u.Status = STATUS_CANCELLED;
+    return STATUS_SUCCESS;
+}
+FORWARD_FUNCTION(NtCancelIoFile, ZwNtCancelIoFile);
+
 NTSTATUS NTAPI NtOpenSymbolicLinkObject(PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
     DECLAREVARCONV(ObjectAttributesA);

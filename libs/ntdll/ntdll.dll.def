@@ -102,6 +102,7 @@ NtDeleteFile=NtDeleteFile@4
 NtDeviceIoControlFile=NtDeviceIoControlFile@40
 NtDisplayString=NtDisplayString@4
 NtFlushBuffersFile=NtFlushBuffersFile@8
+NtCancelIoFile=NtCancelIoFile@8
 NtFreeVirtualMemory=NtFreeVirtualMemory@16
 NtFsControlFile=NtFsControlFile@40
 NtLoadDriver=NtLoadDriver@4
