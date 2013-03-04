@@ -54,7 +54,7 @@ static void usage(void) {
     "  - http://www.infocellar.com/winxp/chkdsk-and-autochk.htm\n"
     "  - http://support.microsoft.com/kb/218461\n"
     "  - http://support.microsoft.com/kb/160963/EN-US/\n"
-    "  - http://technet.microsoft.com/en-us/library/cc771787%28v=ws.10%29.aspx\n"
+    "  - http://technet.microsoft.com/en-us/library/cc771787%%28v=ws.10%%29.aspx\n"
     "\n"
     "autochk.exe [switches] volume | *\n"
     " * = all volumes, it queries global directory\n"
