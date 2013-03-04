@@ -347,6 +347,7 @@ FORWARD_FUNCTION(NtOpenFile, ZwOpenFile);
 NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext,
     PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset, PULONG Key)
 {
+    int count;
     CHECK_HANDLE(FileHandle, HANDLE_FILE);
     CHECK_POINTER(IoStatusBlock);
 
@@ -382,8 +383,10 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
         lseek(FileHandle->file.fh, ByteOffset->QuadPart, SEEK_SET);
     }
 
-    if ((IoStatusBlock->Information = read(FileHandle->file.fh, Buffer, Length)) < 0)
+    if ((count = read(FileHandle->file.fh, Buffer, Length)) < 0)
         return (IoStatusBlock->u.Status = STATUS_UNSUCCESSFUL);
+
+    IoStatusBlock->Information = count;
 #endif
     return (IoStatusBlock->u.Status = STATUS_SUCCESS);
 }
@@ -392,6 +395,7 @@ FORWARD_FUNCTION(NtReadFile, ZwReadFile);
 NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock,
     PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset, PULONG Key)
 {
+    int count;
     CHECK_HANDLE(FileHandle, HANDLE_FILE);
     CHECK_POINTER(IoStatusBlock);
 
@@ -425,8 +429,10 @@ NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcR
         lseek(FileHandle->file.fh, ByteOffset->QuadPart, SEEK_SET);
     }
 
-    if ((IoStatusBlock->Information = write(FileHandle->file.fh, Buffer, Length)) < 0)
+    if ((count = write(FileHandle->file.fh, Buffer, Length)) < 0)
         return (IoStatusBlock->u.Status = STATUS_UNSUCCESSFUL);
+
+    IoStatusBlock->Information = count;
 #endif
     return (IoStatusBlock->u.Status = STATUS_SUCCESS);
 }
