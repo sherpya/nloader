@@ -14,7 +14,7 @@ disk.img:
 	$(MKNTFS) -Ff -p 63 -L Native -H 255 -s 512 -S 63 disk.img
 
 clean:
-	rm -f *.o *.d nloader$(EXE) autochk volumeinfo$(EXE) lznt1$(EXE)
+	rm -f *.o *.d *.dSYM nloader$(EXE) autochk volumeinfo$(EXE) lznt1$(EXE)
 	$(MAKE) -C libs/ntdll clean
 
 nloader: nloader.o loader.o stubs.o

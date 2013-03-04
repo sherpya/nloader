@@ -7,6 +7,7 @@
 *.log
 *.exe
 *.lznt1
+*.dSYM
 nloader
 autochk
 lznt1
