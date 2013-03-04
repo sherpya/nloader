@@ -215,6 +215,10 @@ static inline int mprotect(void *addr, size_t len, int prot)
 #include <sys/sysctl.h>
 #endif
 
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 #ifndef RTLD_DEEPBIND
 #define RTLD_DEEPBIND 0
 #endif
