@@ -152,6 +152,7 @@ NTSTATUS NTAPI NtShutdownSystem(SHUTDOWN_ACTION Action)
     fprintf(stderr, "ntdll.NtShutdownSystem(%d)\n", Action);
     exit(0);
 }
+FORWARD_FUNCTION(NtShutdownSystem, ZwShutdownSystem);
 
 NTSTATUS NTAPI LdrSetMUICacheType(ULONG Type)
 {

@@ -37,6 +37,10 @@ FORWARD_FUNCTION(atoll, rpl__atoi64);
 FORWARD_FUNCTION(atoi, rpl_atoi);
 FORWARD_FUNCTION(qsort, rpl_qsort);
 FORWARD_FUNCTION(strcasecmp, rpl__stricmp);
+FORWARD_FUNCTION(strncasecmp, rpl__strnicmp);
+FORWARD_FUNCTION(strncpy, rpl_strncpy);
+FORWARD_FUNCTION(strpbrk, rpl_strpbrk);
+FORWARD_FUNCTION(strspn, rpl_strspn);
 
 // long is always 32bit on win32
 LONG CDECL rpl_atol(const char *nptr)

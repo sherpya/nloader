@@ -33,6 +33,7 @@ RtlComputeCrc32
 
 ; crt.c
 rpl__stricmp=stricmp
+rpl__strnicmp=strnicmp
 rpl__wcsicmp
 rpl__wcslwr
 rpl__wcsnicmp
@@ -47,6 +48,9 @@ rpl_isspace
 rpl_memcpy=memcpy
 rpl_memmove=memmove
 rpl_memset=memset
+rpl_strncpy=strncpy
+rpl_strpbrk=strpbrk
+rpl_strspn=strspn
 rpl_qsort=qsort
 rpl_wcscat
 rpl_wcschr
@@ -127,6 +131,7 @@ NtSetEvent
 NtSetInformationFile
 NtSetInformationProcess
 NtShutdownSystem
+ZwShutdownSystem=NtShutdownSystem@4
 NtTerminateProcess
 NtWaitForMultipleObjects
 NtWaitForSingleObject
@@ -153,10 +158,12 @@ RtlDosPathNameToNtPathName_U
 RtlEqualUnicodeString
 RtlExpandEnvironmentStrings_U
 RtlFillMemoryUlong
+RtlGetCurrentDirectory_U
 RtlFindMessage
 RtlFormatMessage
 RtlFreeAnsiString
 RtlFreeUnicodeString
+RtlCreateUnicodeStringFromAsciiz
 RtlInitAnsiString
 RtlInitAnsiStringEx
 RtlInitUnicodeString

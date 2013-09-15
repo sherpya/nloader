@@ -340,6 +340,14 @@ VOID NTAPI RtlFreeUnicodeString(PUNICODE_STRING UnicodeString)
     }
 }
 
+BOOLEAN NTAPI RtlCreateUnicodeStringFromAsciiz(PUNICODE_STRING DestinationString, LPCSTR SourceString)
+{
+    STRING ansi;
+    RtlInitAnsiString(&ansi, SourceString);
+    Log("ntdll.RtlCreateUnicodeStringFromAsciiz(\"%s\", %p)", SourceString, DestinationString);
+    return !RtlAnsiStringToUnicodeString(DestinationString, &ansi, TRUE);
+}
+
 BOOLEAN NTAPI RtlPrefixUnicodeString(PUNICODE_STRING String1, PUNICODE_STRING String2, BOOLEAN CaseInSensitive)
 {
     int i;
@@ -529,6 +537,14 @@ NTSTATUS NTAPI RtlExpandEnvironmentStrings_U(PVOID Environment, PUNICODE_STRING 
     if (DestinationBufferLength)
         *DestinationBufferLength = DestinationString->Length;
     return STATUS_SUCCESS;
+}
+
+ULONG NTAPI RtlGetCurrentDirectory_U(ULONG MaximumLength, PWSTR Buffer)
+{
+    Log("ntdll.RtlGetCurrentDirectory_U(%d, %p)\n", MaximumLength, Buffer);
+    Buffer[0] = L'.';
+    Buffer[1] = 0;
+    return 1;
 }
 
 VOID NTAPI RtlFillMemoryUlong(PVOID Destination, ULONG Length, ULONG Fill)
