@@ -332,4 +332,15 @@ typedef struct tagMESSAGE_RESOURCE_DATA {
     MESSAGE_RESOURCE_BLOCK Blocks[1];
 } MESSAGE_RESOURCE_DATA,*PMESSAGE_RESOURCE_DATA;
 
+#define KEY_MAKE    0
+#define KEY_BREAK   1
+
+typedef struct tagKEYBOARD_INPUT_DATA {
+    USHORT UnitId;
+    USHORT MakeCode;
+    USHORT Flags;
+    USHORT Reserved;
+    ULONG ExtraInformation;
+} KEYBOARD_INPUT_DATA, *PKEYBOARD_INPUT_DATA;
+
 #endif /* _NTDLL_H */

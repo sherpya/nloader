@@ -32,6 +32,7 @@
 #if defined(__linux)
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #elif defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/disk.h>
 #include <sys/param.h>
@@ -40,6 +41,8 @@
 #endif
 
 MODULE(io)
+
+#include "scancodes.c"
 
 #ifndef _WIN32
 #define CHECK_FLAG(nt, unix) \
@@ -170,7 +173,7 @@ static int unix_open(const char *path, int flags)
     else if (!strncasecmp(path, "\\Device\\KeyboardClass", 21))
     {
         if ((path[22] == 0) && ((path[21] == '0') || (path[21] == '1')))
-            return open("/dev/null", flags);    /* fileno(stdin) requires some work on NtReadFile */
+            return fileno(stdin);
         return -1;
     }
 
@@ -344,6 +347,27 @@ NTSTATUS NTAPI NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT
 }
 FORWARD_FUNCTION(NtOpenFile, ZwOpenFile);
 
+static int GetChar(void)
+{
+#if defined(__linux)
+    int c;
+    static struct termios oldt, newt;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    c = getchar();
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+
+    return c;
+#else
+    return EOF;
+#endif
+}
+
 NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext,
     PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset, PULONG Key)
 {
@@ -362,6 +386,25 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
 
     Log("ntdll.NtReadFile(\"%s\", %p, %d, %lld)\n", strhandle(FileHandle), Buffer, Length,
         ByteOffset ? ByteOffset->QuadPart : 0);
+
+    if (FileHandle->file.fh == fileno(stdin))
+    {
+        int c;
+        KEYBOARD_INPUT_DATA *KeyboardData;
+
+        if (Length != sizeof(KEYBOARD_INPUT_DATA))
+            return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
+
+        c = GetChar();
+
+        KeyboardData = (KEYBOARD_INPUT_DATA *) Buffer;
+        KeyboardData->UnitId = 0;
+        KeyboardData->MakeCode = (c == EOF) ? 0 : AsciiToScan[c];
+        KeyboardData->Flags = KEY_MAKE;
+
+        IoStatusBlock->Information = Length;
+        return (IoStatusBlock->u.Status = STATUS_SUCCESS);
+    }
 
     if (!IsValidHandle(FileHandle->file.fh))
         return (IoStatusBlock->u.Status = STATUS_INVALID_HANDLE);
