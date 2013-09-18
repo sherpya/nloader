@@ -257,6 +257,7 @@ NTSTATUS NTAPI RtlUnicodeToOemN(PCHAR OemString, ULONG MaxBytesInOemString, PULO
 VOID NTAPI RtlInitUnicodeString(PUNICODE_STRING DestinationString, LPCWSTR SourceString);
 VOID NTAPI RtlSecondsSince1970ToTime(DWORD Seconds, LARGE_INTEGER *Time);
 VOID NTAPI RtlFillMemoryUlong(PVOID Destination, ULONG Length, ULONG Fill);
+BOOLEAN NTAPI RtlCreateUnicodeStringFromAsciiz(PUNICODE_STRING DestinationString, LPCSTR SourceString);
 
 /* time.c */
 NTSTATUS NTAPI NtQuerySystemTime(PLARGE_INTEGER Time);
