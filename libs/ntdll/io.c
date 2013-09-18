@@ -350,17 +350,19 @@ FORWARD_FUNCTION(NtOpenFile, ZwOpenFile);
 static int GetChar(void)
 {
 #if defined(__linux)
-    int c;
+    int c, fd = fileno(stdin);
     static struct termios oldt, newt;
-    tcgetattr(STDIN_FILENO, &oldt);
+    tcgetattr(fd, &oldt);
     newt = oldt;
 
     newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    newt.c_cc[VTIME] = 10;
+    newt.c_cc[VMIN] = 0;
+    tcsetattr(fd, TCSANOW, &newt);
 
     c = getchar();
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    tcsetattr(fd, TCSANOW, &oldt);
 
     return c;
 #else
@@ -392,17 +394,22 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
         int c;
         KEYBOARD_INPUT_DATA *KeyboardData;
 
+
         if (Length != sizeof(KEYBOARD_INPUT_DATA))
             return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
 
-        c = GetChar();
+        if ((c = GetChar()) != EOF)
+        {
+            char *name = strhandle(FileHandle);
+            KeyboardData = (KEYBOARD_INPUT_DATA *) Buffer;
+            KeyboardData->UnitId = (strlen(name) >= 24) ? name[23] - '0' : 0;
+            KeyboardData->MakeCode = AsciiToScan[c];
+            KeyboardData->Flags = KEY_MAKE;
+            IoStatusBlock->Information = Length;
+        }
+        else
+            IoStatusBlock->Information = 0;
 
-        KeyboardData = (KEYBOARD_INPUT_DATA *) Buffer;
-        KeyboardData->UnitId = 0;
-        KeyboardData->MakeCode = (c == EOF) ? 0 : AsciiToScan[c];
-        KeyboardData->Flags = KEY_MAKE;
-
-        IoStatusBlock->Information = Length;
         return (IoStatusBlock->u.Status = STATUS_SUCCESS);
     }
 
