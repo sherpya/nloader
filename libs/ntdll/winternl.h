@@ -744,4 +744,64 @@ typedef struct _SYSTEM_MODULE_INFORMATION {
     SYSTEM_MODULE Modules[0];
 } SYSTEM_MODULE_INFORMATION, *PSYSTEM_MODULE_INFORMATION;
 
+typedef LONG KPRIORITY;
+
+typedef struct _VM_COUNTERS {
+    SIZE_T PeakVirtualSize;
+    SIZE_T VirtualSize;
+    ULONG  PageFaultCount;
+    SIZE_T PeakWorkingSetSize;
+    SIZE_T WorkingSetSize;
+    SIZE_T QuotaPeakPagedPoolUsage;
+    SIZE_T QuotaPagedPoolUsage;
+    SIZE_T QuotaPeakNonPagedPoolUsage;
+    SIZE_T QuotaNonPagedPoolUsage;
+    SIZE_T PagefileUsage;
+    SIZE_T PeakPagefileUsage;
+} VM_COUNTERS, *PVM_COUNTERS;
+
+typedef struct _IO_COUNTERS {
+    ULONGLONG ReadOperationCount;
+    ULONGLONG WriteOperationCount;
+    ULONGLONG OtherOperationCount;
+    ULONGLONG ReadTransferCount;
+    ULONGLONG WriteTransferCount;
+    ULONGLONG OtherTransferCount;
+} IO_COUNTERS, *PIO_COUNTERS;
+
+typedef struct _SYSTEM_THREAD_INFORMATION
+{
+    LARGE_INTEGER KernelTime;
+    LARGE_INTEGER UserTime;
+    LARGE_INTEGER CreateTime;
+    DWORD         dwTickCount;
+    LPVOID        StartAddress;
+    CLIENT_ID     ClientId;
+    DWORD         dwCurrentPriority;
+    DWORD         dwBasePriority;
+    DWORD         dwContextSwitches;
+    DWORD         dwThreadState;
+    DWORD         dwWaitReason;
+    DWORD         dwUnknown;
+} SYSTEM_THREAD_INFORMATION, *PSYSTEM_THREAD_INFORMATION;
+
+typedef struct _SYSTEM_PROCESS_INFORMATION {
+    ULONG NextEntryOffset;
+    ULONG NumberOfThreads;
+    LARGE_INTEGER Reserved[3];
+    LARGE_INTEGER CreateTime;
+    LARGE_INTEGER UserTime;
+    LARGE_INTEGER KernelTime;
+    UNICODE_STRING ImageName;
+    KPRIORITY BasePriority;
+    HANDLE UniqueProcessId;
+    HANDLE InheritedFromProcessId;
+    ULONG HandleCount;
+    ULONG Reserved2[2];
+    ULONG PrivatePageCount;
+    VM_COUNTERS VirtualMemoryCounters;
+    IO_COUNTERS IoCounters;
+    SYSTEM_THREAD_INFORMATION Threads[0];
+} SYSTEM_PROCESS_INFORMATION, *PSYSTEM_PROCESS_INFORMATION;
+
 #endif /* _WINTERNL_H */

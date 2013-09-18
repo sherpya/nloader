@@ -118,6 +118,22 @@ NTSTATUS NTAPI NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformati
             result = STATUS_SUCCESS;
             break;
         }
+        case SystemProcessInformation:
+        {
+            SYSTEM_PROCESS_INFORMATION *spi = SystemInformation;
+
+            if (ReturnLength)
+                *ReturnLength = sizeof(SYSTEM_PROCESS_INFORMATION);
+
+            if (SystemInformationLength < sizeof(SYSTEM_PROCESS_INFORMATION))
+                break;
+
+            memset(spi, 0, sizeof(SYSTEM_PROCESS_INFORMATION));
+            spi->UniqueProcessId = (HANDLE) 0x1337;
+            spi->NumberOfThreads = 1;
+            result = STATUS_SUCCESS;
+            break;
+        }
         default:
             Log(" !!UNIMPLEMENTED!!");
             result = STATUS_NOT_IMPLEMENTED;
