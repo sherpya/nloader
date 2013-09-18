@@ -269,9 +269,9 @@ int CDECL rpl_isprint(int c)
     return 0;
 }
 
-unsigned long CDECL rpl_wcstoul(const wchar_t *nptr, wchar_t **endptr, int base)
+ULONG CDECL rpl_wcstoul(const wchar_t *nptr, wchar_t **endptr, int base)
 {
-    int ret;
+    ULONG ret;
     DECLAREVARCONV(nptrA);
     WSTR2STR(nptr);
     char *endptrA;
