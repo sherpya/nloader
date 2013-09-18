@@ -30,6 +30,7 @@
 
 MODULE(crt)
 
+FORWARD_FUNCTION(memcmp, rpl_memcmp);
 FORWARD_FUNCTION(memcpy, rpl_memcpy);
 FORWARD_FUNCTION(memset, rpl_memset);
 FORWARD_FUNCTION(memmove, rpl_memmove);

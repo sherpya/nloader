@@ -45,6 +45,7 @@ rpl_atol=atol
 rpl_atoll=_atoi64
 rpl_isprint
 rpl_isspace
+rpl_memcmp=memcmp
 rpl_memcpy=memcpy
 rpl_memmove=memmove
 rpl_memset=memset
