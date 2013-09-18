@@ -501,6 +501,7 @@ BOOLEAN NTAPI RtlDosPathNameToNtPathName_U(PCWSTR dos_path, PUNICODE_STRING ntpa
     ntpath->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, dplen_inb + sizeof(WCHAR));
     memcpy(ntpath->Buffer, dos_path, dplen_inb + sizeof(WCHAR));
     ntpath->Buffer[1] = L'?';
+    ntpath->Buffer[dplen_inb - 1] = 0;
     ntpath->Length = dplen_inb;
     ntpath->MaximumLength = dplen_inb + sizeof(WCHAR);
 
