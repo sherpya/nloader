@@ -105,21 +105,17 @@ PVOID NTAPI RtlReAllocateHeap(PVOID HeapHandle, ULONG Flags, PVOID MemoryPointer
 
 SIZE_T NTAPI RtlSizeHeap(PVOID HeapHandle, ULONG Flags, LPCVOID MemoryPointer)
 {
-    assert(HEAP_OFFMAGIC(MemoryPointer) == HEAPALLOC_MAGIC);
-
     Debug("ntdll.RtlSizeHeap(%p, 0x%08x, %p) = %d\n", HeapHandle, (int) Flags, MemoryPointer, HEAP_OFFSIZE(MemoryPointer));
+    assert(HEAP_OFFMAGIC(MemoryPointer) == HEAPALLOC_MAGIC);
     return HEAP_OFFSIZE(MemoryPointer);
 }
 
 BOOLEAN NTAPI RtlFreeHeap(PVOID HeapHandle, ULONG Flags, PVOID MemoryPointer)
 {
-    assert(HEAP_OFFMAGIC(MemoryPointer) == HEAPALLOC_MAGIC);
-
     Debug("ntdll.RtlFreeHeap(%p, 0x%08x, %p)\n", HeapHandle, (int) Flags, MemoryPointer);
-
+    assert(HEAP_OFFMAGIC(MemoryPointer) == HEAPALLOC_MAGIC);
     HEAP_OFFMAGIC(MemoryPointer) = HEAPFREE_MAGIC;
     MemoryPointer = (PVOID)((uint32_t *) MemoryPointer - 2);
     free(MemoryPointer);
-
     return TRUE;
 }
