@@ -63,6 +63,7 @@ rpl_wcsncmp
 rpl_wcsrchr
 rpl_wcsspn
 rpl_wcsstr=wcsstr ; no memmem on win32
+rpl_wcstoul
 
 ; format.c
 DbgPrint
