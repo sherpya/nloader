@@ -104,6 +104,20 @@ NTSTATUS NTAPI NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformati
             result = STATUS_SUCCESS;
             break;
         }
+        case SystemModuleInformation:
+        {
+            SYSTEM_MODULE_INFORMATION *smi = SystemInformation;
+
+            if (ReturnLength)
+                *ReturnLength = sizeof(SYSTEM_MODULE_INFORMATION);
+
+            if (SystemInformationLength < sizeof(SYSTEM_MODULE_INFORMATION))
+                break;
+
+            memset(smi, 0, sizeof(SYSTEM_MODULE_INFORMATION));
+            result = STATUS_SUCCESS;
+            break;
+        }
         default:
             Log(" !!UNIMPLEMENTED!!");
             result = STATUS_NOT_IMPLEMENTED;
