@@ -545,10 +545,54 @@ typedef struct _MOUNTDEV_NAME {
 
 /* --- */
 
-#define SystemBasicInformation 0
-#define SystemPerformanceInformation 2
-#define SystemTimeOfDayInformation 3
-typedef DWORD SYSTEM_INFORMATION_CLASS;
+typedef enum _SYSTEM_INFORMATION_CLASS {
+    SystemBasicInformation,
+    SystemProcessorInformation,
+    SystemPerformanceInformation,
+    SystemTimeOfDayInformation,
+    SystemPathInformation,
+    SystemProcessInformation,
+    SystemCallCountInformation,
+    SystemDeviceInformation,
+    SystemProcessorPerformanceInformation,
+    SystemFlagsInformation,
+    SystemCallTimeInformation,
+    SystemModuleInformation,
+    SystemLocksInformation,
+    SystemStackTraceInformation,
+    SystemPagedPoolInformation,
+    SystemNonPagedPoolInformation,
+    SystemHandleInformation,
+    SystemObjectInformation,
+    SystemPageFileInformation,
+    SystemVdmInstemulInformation,
+    SystemVdmBopInformation,
+    SystemFileCacheInformation,
+    SystemPoolTagInformation,
+    SystemInterruptInformation,
+    SystemDpcBehaviorInformation,
+    SystemFullMemoryInformation,
+    SystemLoadGdiDriverInformation,
+    SystemUnloadGdiDriverInformation,
+    SystemTimeAdjustmentInformation,
+    SystemSummaryMemoryInformation,
+    SystemNextEventIdInformation,
+    SystemEventIdsInformation,
+    SystemCrashDumpInformation,
+    SystemExceptionInformation,
+    SystemCrashDumpStateInformation,
+    SystemKernelDebuggerInformation,
+    SystemContextSwitchInformation,
+    SystemRegistryQuotaInformation,
+    SystemExtendServiceTableInformation,
+    SystemPrioritySeperation,
+    SystemPlugPlayBusInformation,
+    SystemDockInformation,
+    SystemPowerInformation,
+    SystemProcessorSpeedInformation,
+    SystemCurrentTimeZoneInformation,
+    SystemLookasideInformation
+} SYSTEM_INFORMATION_CLASS, *PSYSTEM_INFORMATION_CLASS;
 
 typedef enum _THREADINFOCLASS {
     ThreadBasicInformation,
