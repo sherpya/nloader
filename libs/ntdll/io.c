@@ -666,3 +666,21 @@ NTSTATUS NTAPI NtQuerySymbolicLinkObject(HANDLE LinkHandle, PUNICODE_STRING Link
 
     return STATUS_SUCCESS;
 }
+
+NTSTATUS NTAPI NtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event,
+    PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext,
+    PIO_STATUS_BLOCK IoStatusBlock, PVOID FileInformation,
+    ULONG Length, FILE_INFORMATION_CLASS FileInformationClass,
+    BOOLEAN ReturnSingleEntry, PUNICODE_STRING FileName, BOOLEAN RestartScan)
+{
+    CHECK_HANDLE(FileHandle, HANDLE_FILE);
+    CHECK_POINTER(IoStatusBlock);
+
+    Log("ntdll.NtQueryDirectoryFile(\"%s\")\n", strhandle(FileHandle));
+
+    if (!IsValidHandle(FileHandle->file.fh))
+        return (IoStatusBlock->u.Status = STATUS_INVALID_HANDLE);
+
+    return (IoStatusBlock->u.Status = STATUS_UNSUCCESSFUL);
+}
+FORWARD_FUNCTION(NtQueryDirectoryFile, ZwQueryDirectoryFile);
