@@ -242,3 +242,9 @@ NTSTATUS NTAPI NtAdjustPrivilegesToken(HANDLE TokenHandle, BOOLEAN DisableAllPri
     Log("ntdll.NtAdjustPrivilegesToken()\n");
     return STATUS_SUCCESS;
 }
+
+NTSTATUS NTAPI NtSetDefaultLocale(BOOLEAN UserProfile, LCID DefaultLocaleId)
+{
+    Log("ntdll.NtSetDefaultLocale(%d, %d)\n", UserProfile, DefaultLocaleId);
+    return STATUS_SUCCESS;
+}

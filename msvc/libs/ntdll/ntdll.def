@@ -101,6 +101,7 @@ RtlDecompressBuffer
 LdrGetDllHandle
 LdrSetMUICacheType
 NtAdjustPrivilegesToken
+NtSetDefaultLocale
 NtAllocateVirtualMemory
 NtClearEvent
 NtClose

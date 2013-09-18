@@ -103,6 +103,7 @@ RtlDecompressBuffer=RtlDecompressBuffer@24
 LdrGetDllHandle=LdrGetDllHandle@16
 LdrSetMUICacheType=LdrSetMUICacheType@4
 NtAdjustPrivilegesToken=NtAdjustPrivilegesToken@24
+NtSetDefaultLocale=NtSetDefaultLocale@8
 NtAllocateVirtualMemory=NtAllocateVirtualMemory@24
 NtClearEvent=NtClearEvent@4
 NtClose=NtClose@4
