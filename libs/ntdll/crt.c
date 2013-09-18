@@ -284,6 +284,20 @@ unsigned long CDECL rpl_wcstoul(const wchar_t *nptr, wchar_t **endptr, int base)
     return ret;
 }
 
+ULONGLONG CDECL rpl__wcstoui64(const wchar_t *nptr, wchar_t **endptr, int base)
+{
+    ULONGLONG ret;
+    DECLAREVARCONV(nptrA);
+    WSTR2STR(nptr);
+    char *endptrA;
+
+    ret = strtoll(nptrA, &endptrA, base);
+
+    if (endptr)
+        *endptr = ((wchar_t *) nptr) + (endptrA - nptrA);
+    return ret;
+}
+
 LONGLONG CDECL rpl__wtoi64(LPCWSTR str)
 {
     ULONGLONG value = 0;
