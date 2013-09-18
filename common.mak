@@ -4,6 +4,8 @@ CFLAGS += -m32
 CFLAGS += -MD -MP
 CFLAGS += -O0 -g3 -Wall
 CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
+# gcc decided to crash in strcasestr using sse2 code
+CFLAGS += -mincoming-stack-boundary=2
 
 ifdef RELEASE
 CFLAGS  += -O2
