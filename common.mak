@@ -8,8 +8,12 @@ CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
 CFLAGS += -mincoming-stack-boundary=2
 
 ifdef RELEASE
-CFLAGS  += -O2
-LDFLAGS += -s
+$(error RELEASE is currently broken)
+CFLAGS += -O2
+STRIP  = strip --strip-unneeded
+STRIP  = :
+else
+STRIP  = :
 endif
 
 TARGETS = nloader lznt1 libs

@@ -25,6 +25,7 @@ autochk_blob.o: autochk.exe
 
 autochk: autochk.o loader.o stubs.o autochk_blob.o | libs
 	$(CC) $(CFLAGS) $(LDALONE) $(LDFLAGS) -o $@ $^
+	$(STRIP) $@
 
 lznt1: libs/ntdll/lznt1.c
 	$(CC) -DMAIN $(CFLAGS) $(LDFLAGS) -o $@ $^
