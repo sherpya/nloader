@@ -107,17 +107,6 @@ WCHAR NTAPI RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)
     return unichar;
 }
 
-VOID NTAPI RtlFreeAnsiString(PANSI_STRING AnsiString)
-{
-    if (RtlSizeHeap(HANDLE_HEAP, 0, AnsiString->Buffer) != AnsiString->MaximumLength)
-        Log("ntdll.RtlFreeAnsiString(%p) -> PTR SIZE MISMATCH\n", AnsiString->Buffer);
-    else
-    {
-        Log("ntdll.RtlFreeAnsiString(%p)\n", AnsiString->Buffer);
-        RtlFreeHeap(HANDLE_HEAP, 0, AnsiString->Buffer);
-    }
-}
-
 NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
     PCUNICODE_STRING SourceString, BOOLEAN AllocateDestinationString)
 {
@@ -292,6 +281,16 @@ VOID NTAPI RtlInitUnicodeString(PUNICODE_STRING DestinationString, LPCWSTR Sourc
     Log("ntdll.RtlInitUnicodeString(%p, \"%s\") -> %p\n", SourceString, SourceStringA, DestinationString);
 }
 
+VOID NTAPI RtlFreeUnicodeString(PUNICODE_STRING UnicodeString)
+{
+    Log("ntdll.RtlFreeUnicodeString(%p)\n", UnicodeString->Buffer);
+    if (UnicodeString->Buffer)
+    {
+        RtlFreeHeap(GetProcessHeap(), 0, UnicodeString->Buffer);
+        memset(UnicodeString, 0, sizeof(*UnicodeString));
+    }
+}
+
 VOID NTAPI RtlInitAnsiString(PANSI_STRING DestinationString, LPCSTR SourceString)
 {
     if ((DestinationString->Buffer = (PSTR) SourceString))
@@ -329,14 +328,13 @@ NTSTATUS NTAPI RtlInitAnsiStringEx(PANSI_STRING DestinationString, LPCSTR Source
     return STATUS_SUCCESS;
 }
 
-VOID NTAPI RtlFreeUnicodeString(PUNICODE_STRING UnicodeString)
+VOID NTAPI RtlFreeAnsiString(PANSI_STRING AnsiString)
 {
-    if (RtlSizeHeap(HANDLE_HEAP, 0, UnicodeString->Buffer) != UnicodeString->MaximumLength)
-        Log("ntdll.RtlFreeUnicodeString(%p) -> PTR SIZE MISMATCH\n", UnicodeString->Buffer);
-    else
+    Log("ntdll.RtlFreeAnsiString(%p)\n", AnsiString->Buffer);
+    if (AnsiString->Buffer)
     {
-        Log("ntdll.RtlFreeUnicodeString(%p)\n", UnicodeString->Buffer);
-        RtlFreeHeap(HANDLE_HEAP, 0, UnicodeString->Buffer);
+        RtlFreeHeap(GetProcessHeap(), 0, AnsiString->Buffer);
+        memset(AnsiString, 0, sizeof(*AnsiString));
     }
 }
 
