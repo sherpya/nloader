@@ -1,14 +1,21 @@
+# compiler detection
+COMPILER = "$(shell $(CC) --version | head -1)"
+
 CFLAGS  = -I$(top)
 CFLAGS += -D_FILE_OFFSET_BITS=64
 CFLAGS += -m32
 CFLAGS += -MD -MP
 CFLAGS += -O0 -g3 -Wall
 CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
-# gcc decided to crash in strcasestr using sse2 code
-CFLAGS += -mincoming-stack-boundary=2
+
+# glibc decided to crash in strcasestr using sse2 code
+ifneq (,$(findstring clang, $(COMPILER)))
+	CFLAGS += -mstackrealign
+else ifneq (,$(findstring cc, $(COMPILER)))
+	CFLAGS += -mincoming-stack-boundary=2
+endif
 
 ifdef RELEASE
-$(error RELEASE is currently broken)
 CFLAGS += -O2
 STRIP  = strip --strip-unneeded
 STRIP  = :
