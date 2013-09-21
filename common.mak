@@ -19,7 +19,6 @@ endif
 ifdef RELEASE
 CFLAGS += -O2
 STRIP  = strip --strip-unneeded
-STRIP  = :
 else
 STRIP  = :
 endif
