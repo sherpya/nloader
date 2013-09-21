@@ -98,7 +98,7 @@ NTSTATUS NTAPI RtlCreateUserThread(HANDLE ProcessHandle, /*PSECURITY_DESCRIPTOR*
 #ifdef THREADED
     if (pthread_create(&th->thread.tid, NULL, thread_start, (void *) th))
     {
-        RtlFreeHeap(HANDLE_HEAP, 0, th);
+        RtlFreeHeap(GetProcessHeap(), 0, th);
         return STATUS_UNSUCCESSFUL;
     }
 #else
@@ -161,7 +161,7 @@ NTSTATUS NTAPI RtlInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSectio
     Log("ntdll.RtlInitializeCriticalSection(%p)\n", CriticalSection);
     memset(CriticalSection, 0, sizeof(RTL_CRITICAL_SECTION));
 #ifdef THREADED
-    CriticalSection->LockSemaphore = RtlAllocateHeap(HANDLE_HEAP, 0, sizeof(pthread_mutex_t));
+    CriticalSection->LockSemaphore = RtlAllocateHeap(GetProcessHeap(), 0, sizeof(pthread_mutex_t));
     pthread_mutex_init((pthread_mutex_t *) CriticalSection->LockSemaphore, NULL);
 #endif
     return STATUS_SUCCESS;
@@ -173,7 +173,7 @@ NTSTATUS NTAPI RtlDeleteCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
     Log("ntdll.RtlDeleteCriticalSection(%p)\n", CriticalSection);
 #ifdef THREADED
     pthread_mutex_destroy((pthread_mutex_t *) CriticalSection->LockSemaphore);
-    RtlFreeHeap(HANDLE_HEAP, 0, CriticalSection->LockSemaphore);
+    RtlFreeHeap(GetProcessHeap(), 0, CriticalSection->LockSemaphore);
 #endif
     return STATUS_SUCCESS;
 }

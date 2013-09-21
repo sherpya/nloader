@@ -57,7 +57,7 @@ NTSTATUS NTAPI RtlUnicodeStringToAnsiString(PANSI_STRING DestinationString,
     USHORT alloc = SourceString->MaximumLength / sizeof(WCHAR);
 
     if (AllocateDestinationString)
-        DestinationString->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, alloc);
+        DestinationString->Buffer = RtlAllocateHeap(GetProcessHeap(), 0, alloc);
 
     DestinationString->Length = len;
     DestinationString->MaximumLength = alloc;
@@ -80,7 +80,7 @@ NTSTATUS NTAPI RtlAnsiStringToUnicodeString(PUNICODE_STRING DestinationString,
     USHORT alloc = SourceString->MaximumLength * sizeof(WCHAR);
 
     if (AllocateDestinationString)
-        DestinationString->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, alloc);
+        DestinationString->Buffer = RtlAllocateHeap(GetProcessHeap(), 0, alloc);
 
     DestinationString->Length = len * sizeof(WCHAR);
     DestinationString->MaximumLength = alloc;
@@ -126,7 +126,7 @@ NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
     if (AllocateDestinationString)
     {
         DestinationString->MaximumLength = len;
-        if (!(DestinationString->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, len)))
+        if (!(DestinationString->Buffer = RtlAllocateHeap(GetProcessHeap(), 0, len)))
                 return STATUS_NO_MEMORY;
     }
     else if (len > DestinationString->MaximumLength)
@@ -498,7 +498,7 @@ BOOLEAN NTAPI RtlDosPathNameToNtPathName_U(PCWSTR dos_path, PUNICODE_STRING ntpa
     DECLAREVARCONV(ntpathA);
 
     RtlInitUnicodeString(ntpath, NULL);
-    ntpath->Buffer = RtlAllocateHeap(HANDLE_HEAP, 0, dplen_inb + sizeof(WCHAR));
+    ntpath->Buffer = RtlAllocateHeap(GetProcessHeap(), 0, dplen_inb + sizeof(WCHAR));
     memcpy(ntpath->Buffer, dos_path, dplen_inb + sizeof(WCHAR));
     ntpath->Buffer[1] = L'?';
     ntpath->Buffer[dplen_inb - 1] = 0;

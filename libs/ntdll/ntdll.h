@@ -109,11 +109,13 @@ typedef struct _HANDLE
 } *HANDLE, **PHANDLE;
 
 #define HANDLE_COOKIE 0xfafadada
+#define GetProcessHeap() (HANDLE_HEAP)
 
 #define __CreateHandle(_handle, _type, _name)                                   \
     do                                                                          \
     {                                                                           \
-        (_handle) = RtlAllocateHeap(HANDLE_HEAP, HEAP_ZERO_MEMORY, sizeof(struct _HANDLE));    \
+        (_handle) = RtlAllocateHeap(GetProcessHeap(),                           \
+             HEAP_ZERO_MEMORY, sizeof(struct _HANDLE));                         \
         (_handle)->cookie = HANDLE_COOKIE;                                      \
         (_handle)->type = _type;                                                \
         strncpy((_handle)->name, _name, sizeof((_handle)->name));               \

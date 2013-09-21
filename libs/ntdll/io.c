@@ -526,7 +526,7 @@ NTSTATUS NTAPI NtClose(HANDLE Handle)
             default:
                 break;
         }
-        RtlFreeHeap(HANDLE_HEAP, 0, Handle);
+        RtlFreeHeap(GetProcessHeap(), 0, Handle);
     }
     return STATUS_SUCCESS;
 }
