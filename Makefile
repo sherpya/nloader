@@ -1,10 +1,12 @@
 top=.
 include common.mak
+include libs/ntdll/Makefile
 
-all: libs $(TARGETS)
+all:: $(LIBS) $(STATIC_LIBS)
 
-libs:
-	$(MAKE) -C libs/ntdll
+clean:
+	rm -f *.o *.d *.dSYM nloader$(EXE) autochk lznt1$(EXE) volumeinfo.exe
+	rm -f $(LIBS) $(STATIC_LIBS) $(CLEAN_TARGETS)
 
 disk.img:
 	#dd if=/dev/zero of=disk.img bs=1M count=0 seek=20480
@@ -13,25 +15,21 @@ disk.img:
 	dd if=/dev/zero of=disk.img bs=1 count=0 seek=2072738304
 	$(MKNTFS) -Ff -p 63 -L Native -H 255 -s 512 -S 63 disk.img
 
-clean:
-	rm -f *.o *.d *.dSYM nloader$(EXE) autochk volumeinfo$(EXE) lznt1$(EXE)
-	$(MAKE) -C libs/ntdll clean
-
-nloader: nloader.o loader.o stubs.o
+nloader$(EXE): nloader.o loader.o stubs.o $(LIBS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 autochk_blob.o: autochk.exe
 	objcopy -B i386 -I binary -O elf32-i386 $^ $@
 
-autochk: autochk.o loader.o stubs.o autochk_blob.o | libs
+autochk: autochk.o loader.o stubs.o autochk_blob.o $(STATIC_LIBS)
 	$(CC) $(CFLAGS) $(LDALONE) $(LDFLAGS) -o $@ $^
 	$(STRIP) $@
 
-lznt1: libs/ntdll/lznt1.c
+lznt1$(EXE): libs/ntdll/lznt1.c
 	$(CC) -DMAIN $(CFLAGS) $(LDFLAGS) -o $@ $^
 
-volumeinfo: volumeinfo.o
+volumeinfo.exe: volumeinfo.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ -lntdll
 
 -include *.d
-.PHONY: all libs clean
+.PHONY: all clean

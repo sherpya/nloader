@@ -74,6 +74,8 @@ endif
 #CFLAGS += -DREDIR_IO
 #CFLAGS += -DREDIR_SYSCALL
 
+all:: $(TARGETS)
+
 %.o: %.c Makefile $(top)/common.mak
 	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 

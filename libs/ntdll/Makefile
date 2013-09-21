@@ -1,24 +1,19 @@
-top=../..
 
-include $(top)/common.mak
+ntdll_sources   =   $(wildcard $(top)/libs/ntdll/*.c)
+ntdll_objects   =   $(ntdll_sources:.c=.o)
+ntdll_asm       =   $(wildcard $(top)/libs/ntdll/*.asm)
+ntdll_objects   +=  $(ntdll_asm:.asm=.o)
+ntdll_deps      =   $(ntdll_sources:.c=.d)
 
-all: $(top)/libs/ntdll/libntdll.a $(top)/libs/ntdll.dll.so
+LIBS            += $(top)/libs/ntdll.dll.so
+STATIC_LIBS     += $(top)/libs/ntdll/libntdll.a
+CLEAN_TARGETS   += $(ntdll_objects) $(ntdll_deps)
 
-ntdll_sources=$(wildcard $(top)/libs/ntdll/*.c)
-ntdll_objects=$(ntdll_sources:.c=.o)
-ntdll_asm=$(wildcard $(top)/libs/ntdll/*.asm)
-ntdll_objects+=$(ntdll_asm:.asm=.o)
-
-$(top)/libs/ntdll/libntdll.a: $(ntdll_objects) ntdll.dll.def
+$(top)/libs/ntdll/libntdll.a: $(ntdll_objects)
 	$(AR) cru $@ $(ntdll_objects)
 	$(RANLIB) $@
 
-$(top)/libs/ntdll.dll.so: $(ntdll_objects) ntdll.dll.def
+$(top)/libs/ntdll.dll.so: $(ntdll_objects)
 	$(MKSO) -o $@ $(ntdll_objects)
 
-clean:
-	rm -f $(top)/libs/ntdll.dll.so $(top)/libs/ntdll/libntdll.a $(ntdll_objects) *.d
-
--include $(ntdll_sources:.c=.d)
-
-.PHONY: all clean
+-include $(ntdll_deps)
