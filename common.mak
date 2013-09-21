@@ -4,9 +4,10 @@ COMPILER = "$(shell $(CC) --version | head -1)"
 CFLAGS  = -I$(top)
 CFLAGS += -D_FILE_OFFSET_BITS=64
 CFLAGS += -m32
-CFLAGS += -MD -MP
 CFLAGS += -O0 -g3 -Wall
 CFLAGS += -DLIBNLOADER=\"/usr/lib/nloader\"
+
+DEPFLAGS += -MMD -MF $(@:.o=.d) -MT $@
 
 # glibc decided to crash in strcasestr using sse2 code
 ifneq (,$(findstring clang, $(COMPILER)))
@@ -74,7 +75,7 @@ endif
 #CFLAGS += -DREDIR_SYSCALL
 
 %.o: %.c Makefile $(top)/common.mak
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 %.o: %.asm Makefile $(top)/common.mak $(top)/asmdefs.inc
 	yasm $(YFLAGS) -I$(top) -g $(YDBG) -a x86 -f $(YFMT) -o $@ $<
