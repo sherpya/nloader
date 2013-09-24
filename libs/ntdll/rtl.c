@@ -28,7 +28,12 @@
 #include "ntdll.h"
 #include <stdarg.h>
 #include <ctype.h>
-#include "upcasetable.h"
+#include "wine_casemap.h"
+
+static inline WCHAR toupperW(WCHAR ch)
+{
+    return ch + wine_casemap_upper[wine_casemap_upper[ch >> 8] + (ch & 0xff)];
+}
 
 MODULE(rtl)
 
@@ -122,7 +127,7 @@ NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
         return STATUS_BUFFER_OVERFLOW;
 
     for (i = 0; i < len / sizeof(WCHAR); i++)
-        DestinationString->Buffer[i] = UpcaseTable[SourceString->Buffer[i]];
+        DestinationString->Buffer[i] = toupperW(SourceString->Buffer[i]);
 
     DestinationString->Length = len;
 
