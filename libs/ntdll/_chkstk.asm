@@ -50,7 +50,55 @@ alloca_probe:
     mov eax, dword [eax+4]
     jmp eax
 
+%elifidn __OUTPUT_FORMAT__,elf64
+
+BITS 64
+default rel
+
+SECTION .rodata
+msg_stackover_x64 db 'Stack overflow, ', 0
+
+cextern stderr
+cextern fputs
+cextern abort
+
+SECTION .text
+
+; MSVC x64 __chkstk:
+;   IN: RAX = bytes the caller wants to subtract from RSP.
+;   It probes the requested pages but does NOT modify RSP itself; the caller
+;   does `sub rsp, rax` after the call. Must preserve all GP registers
+;   except R10/R11 (volatile in Win64 ABI).
+;
+; Our minimal implementation: validate against TEB.NtTib.StackLimit (gs:0x10)
+; and abort on overflow. The probe loop is omitted — Linux grows the mapping
+; automatically as long as the access is within our allocated stack range.
+cfunction _chkstk
+    push    r10
+    push    r11
+
+    mov     r10, [gs:0x10]              ; NtTib.StackLimit (lower bound)
+    mov     r11, rsp
+    sub     r11, rax                    ; new sp would land here
+    cmp     r11, r10
+    jb      .stack_smash
+
+    pop     r11
+    pop     r10
+    ret
+
+.stack_smash:
+    ; Cross into SysV ABI to call libc. fputs(s, stream): rdi=s, rsi=stream.
+    lea     rdi, [rel msg_stackover_x64]
+    mov     rax, [rel stderr wrt ..gotpcrel]
+    mov     rsi, [rax]
+    call    fputs wrt ..plt
+    xor     eax, eax
+    call    abort wrt ..plt
+
 %else
+
+BITS 32
 
 SECTION .rodata
 msg_stackover db 'Stack overflow, ', 0

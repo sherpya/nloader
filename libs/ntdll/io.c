@@ -42,7 +42,9 @@
 
 MODULE(io)
 
+#define DEFINE_SCANCODES
 #include "scancodes.c"
+#undef DEFINE_SCANCODES
 
 #ifndef _WIN32
 #define CHECK_FLAG(nt, unix) \
@@ -420,7 +422,7 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
     {
         if (FileHandle->file.st.st_size < ByteOffset->QuadPart)
         {
-            fprintf(stderr, "ntdll.NtReadFile() - Invalid seek -> %llu - max %llu\n", ByteOffset->QuadPart, FileHandle->file.st.st_size);
+            fprintf(stderr, "ntdll.NtReadFile() - Invalid seek -> %llu - max %llu\n", (unsigned long long)ByteOffset->QuadPart, (unsigned long long)FileHandle->file.st.st_size);
             return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
         }
 #ifdef _WIN32
@@ -466,7 +468,7 @@ NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcR
         /* avoid enlarging */
         if (FileHandle->file.st.st_size < ByteOffset->QuadPart)
         {
-            fprintf(stderr, "ntdll.NtWriteFile() - Invalid seek -> %llu - max %llu\n", ByteOffset->QuadPart, FileHandle->file.st.st_size);
+            fprintf(stderr, "ntdll.NtWriteFile() - Invalid seek -> %llu - max %llu\n", (unsigned long long)ByteOffset->QuadPart, (unsigned long long)FileHandle->file.st.st_size);
             return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
         }
 #ifdef _WIN32
@@ -516,11 +518,8 @@ NTSTATUS NTAPI NtClose(HANDLE Handle)
             }
             case HANDLE_EV:
             {
-#ifdef THREADED
                 pthread_cond_destroy(&Handle->event.cond);
-                pthread_mutex_destroy(&Handle->event.cond_mutex);
                 pthread_mutex_destroy(&Handle->event.state_mutex);
-#endif
                 break;
             }
             default:

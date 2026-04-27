@@ -1,3 +1,4 @@
+#ifdef DEFINE_SCANCODES
 static const unsigned char AsciiToScan[] = {
     0x00,       // '\x00'
     0x00,       // '\x01'
@@ -255,3 +256,4 @@ static const unsigned char AsciiToScan[] = {
     0x00,       // '\xfd'
     0x00        // '\xfe'
 };
+#endif /* DEFINE_SCANCODES */

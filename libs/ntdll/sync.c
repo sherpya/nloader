@@ -27,48 +27,54 @@
 
 #include "ntdll.h"
 #include <errno.h>
-
-MODULE(sync)
-
-#ifdef THREADED
 #include <pthread.h>
 #include <sys/time.h>
 
-static inline int interval_to_timespec(PLARGE_INTEGER DelayInterval, struct timespec *timeout, int relative)
-{
-    LARGE_INTEGER when, delay;
+MODULE(sync)
 
-    if (!DelayInterval)
+/* Convert an NT LARGE_INTEGER (100ns ticks) into an absolute timespec
+ * suitable for pthread_cond_timedwait (CLOCK_REALTIME based).
+ *
+ * NT semantics:
+ *   - negative value: relative interval, in 100ns units
+ *   - positive value: absolute time since 1601 (NT epoch)
+ *   - NULL or zero pointer: wait forever (caller handles)
+ */
+static inline int interval_to_timespec(PLARGE_INTEGER DelayInterval, struct timespec *timeout)
+{
+    struct timeval now;
+    LONGLONG ns_offset;
+
+    if (!DelayInterval || !DelayInterval->QuadPart)
         return 0;
 
-    delay.QuadPart = DelayInterval->QuadPart;
+    gettimeofday(&now, NULL);
 
-    NtQuerySystemTime(&when);
-
-    // Negative value means delay relative to current
     if (DelayInterval->QuadPart < 0)
     {
-        if (relative)
-            when.QuadPart = -DelayInterval->QuadPart;
-        else
-            when.QuadPart -= DelayInterval->QuadPart;
+        /* relative, 100ns units → ns */
+        ns_offset = -DelayInterval->QuadPart * 100;
     }
     else
     {
-        if (relative)
-            when.QuadPart = DelayInterval->QuadPart - when.QuadPart;
-        else
-            when.QuadPart = DelayInterval->QuadPart;
+        /* absolute NT time. Convert to ns since unix epoch then subtract now. */
+        LONGLONG unix_100ns = DelayInterval->QuadPart - TICKS_1601_TO_1970;
+        LONGLONG now_100ns  = (LONGLONG) now.tv_sec * 10000000LL + (LONGLONG) now.tv_usec * 10LL;
+        ns_offset = (unix_100ns - now_100ns) * 100;
+        if (ns_offset < 0)
+            ns_offset = 0;
     }
 
-    timeout->tv_sec  = when.QuadPart / 1000000;
-    timeout->tv_nsec = when.QuadPart % 1000000;
-
-    //Log("sync: %lld -> Rel: %s sec: %lu nsec: %lu\n", DelayInterval->QuadPart, relative ? "yes" : "no", timeout->tv_sec, timeout->tv_nsec);
+    timeout->tv_sec  = now.tv_sec + ns_offset / 1000000000LL;
+    timeout->tv_nsec = now.tv_usec * 1000 + ns_offset % 1000000000LL;
+    if (timeout->tv_nsec >= 1000000000L)
+    {
+        timeout->tv_sec  += 1;
+        timeout->tv_nsec -= 1000000000L;
+    }
 
     return 1;
 }
-#endif
 
 NTSTATUS NTAPI NtWaitForSingleObject(HANDLE Handle, BOOLEAN Alertable, PLARGE_INTEGER Timeout)
 {
@@ -83,68 +89,43 @@ NTSTATUS NTAPI NtWaitForSingleObject(HANDLE Handle, BOOLEAN Alertable, PLARGE_IN
         case HANDLE_EV:
         {
             NTSTATUS result = STATUS_SUCCESS;
+            struct timespec deadline;
+            int has_timeout = interval_to_timespec(Timeout, &deadline);
 
-#ifdef THREADED
-            struct timespec timeout;
+            /* Single mutex protects both the predicate (signaled) and the
+             * condvar wait — avoids the lost-wakeup race the old code had. */
+            pthread_mutex_lock(&Handle->event.state_mutex);
 
-            interval_to_timespec(Timeout, &timeout, 0);
-            pthread_mutex_lock(&Handle->event.cond_mutex);
-
-            while (1)
+            while (!Handle->event.signaled)
             {
                 int ret;
-                pthread_mutex_lock(&Handle->event.state_mutex);
+                if (has_timeout)
+                    ret = pthread_cond_timedwait(&Handle->event.cond, &Handle->event.state_mutex, &deadline);
+                else
+                    ret = pthread_cond_wait(&Handle->event.cond, &Handle->event.state_mutex);
 
-                if(Handle->event.signaled)
+                if (ret == ETIMEDOUT)
                 {
-                    result = STATUS_SUCCESS;
+                    result = STATUS_TIMEOUT;
                     break;
                 }
-                pthread_mutex_unlock(&Handle->event.state_mutex);
-
-                if (Timeout && Timeout->QuadPart)
+                if (ret != 0)
                 {
-                    struct timeval before, after;
-                    gettimeofday(&before, NULL);
-                    ret = pthread_cond_timedwait(&Handle->event.cond, &Handle->event.cond_mutex, &timeout);
-                    gettimeofday(&after, NULL);
-                    timeout.tv_sec  -= after.tv_sec - before.tv_sec;
-                    timeout.tv_nsec -= (after.tv_usec - before.tv_usec) * 1000;
+                    result = STATUS_UNSUCCESSFUL;
+                    break;
                 }
-                else
-                    ret = pthread_cond_wait(&Handle->event.cond, &Handle->event.cond_mutex);
+                /* spurious wakeup: re-check predicate */
+            }
 
-                switch (ret)
-                {
-                    case 0:
-                        continue;
-                    case ETIMEDOUT:
-                        result = STATUS_TIMEOUT;
-                        break;
-                    default:/* EINVAL, EPERM, ENOTLOCKED, etc. */
-                        result = STATUS_UNSUCCESSFUL;
-                }
-                break;
-            }
-            pthread_mutex_unlock(&Handle->event.cond_mutex);
-#else   /* THREADED */
-            if(Handle->event.signaled)  { /* I SHOULD BE DEALOCKING HERE */ }
-#endif  /* THREADED */
-            if(result == STATUS_SUCCESS)
-            {
-                if(Handle->event.type == SynchronizationEvent)
-                    Handle->event.signaled = 0;
-#ifdef THREADED
-                pthread_mutex_unlock(&Handle->event.state_mutex);
-#endif
-            }
+            if (result == STATUS_SUCCESS && Handle->event.type == SynchronizationEvent)
+                Handle->event.signaled = 0;
+
+            pthread_mutex_unlock(&Handle->event.state_mutex);
             return result;
         }
         case HANDLE_TH:
         {
-#ifdef THREADED
             pthread_join(Handle->thread.tid, NULL);
-#endif
             return STATUS_SUCCESS;
         }
     }
@@ -156,23 +137,76 @@ FORWARD_FUNCTION(NtWaitForSingleObject, ZwWaitForSingleObject);
 NTSTATUS NTAPI NtWaitForMultipleObjects(ULONG ObjectCount, PHANDLE ObjectsArray,
     OBJECT_WAIT_TYPE WaitType, BOOLEAN Alertable, PLARGE_INTEGER Timeout)
 {
-    // FIXME: in threaded mode a call to:
-    // NtWaitForSingleObject(ObjectsArray[0], Alertable, Timeout)
-    // the programs creates an event and associates it to NtReadFile call
-    // this event is triggered when something is ready
-    // native programs use this method to e.g. read from keyboard
+    Log("ntdll.NtWaitForMultipleObjects(%u, %s)\n", ObjectCount,
+        WaitType == WaitAllObject ? "WaitAllObject" : "WaitAnyObject");
 
-    if ((ObjectCount == 1) || (ObjectCount = 2)) // keyboards
-        return STATUS_TIMEOUT;
+    if (!ObjectCount || !ObjectsArray)
+        return STATUS_INVALID_PARAMETER;
 
-    /* pagedefrag */
-    if (ObjectCount == 16)
-        return STATUS_TIMEOUT;
+    if (WaitType == WaitAllObject)
+    {
+        /* Sequential wait. Acceptable approximation: real Windows would
+         * atomically wait for all. For autochk's usage (events + thread
+         * handles) the order doesn't matter. */
+        for (ULONG i = 0; i < ObjectCount; i++)
+        {
+            NTSTATUS s = NtWaitForSingleObject(ObjectsArray[i], Alertable, Timeout);
+            if (s != STATUS_SUCCESS)
+                return s;
+        }
+        return STATUS_SUCCESS;
+    }
 
-    fprintf(stderr, "ntdll.NtWaitForMultipleObjects() is only implemented for the keyboard stuff\n");
-    abort();
+    /* WaitAny: poll each object with a zero timeout, then sleep briefly.
+     * Sufficient for the keyboard-poll pattern; not efficient but correct. */
+    {
+        LARGE_INTEGER zero = { .QuadPart = -1LL };  /* 100ns, effectively poll */
+        struct timespec deadline = { 0 };
+        int has_deadline = interval_to_timespec(Timeout, &deadline);
 
-    return STATUS_UNSUCCESSFUL; /* vc please... abort is noreturn */
+        for (;;)
+        {
+            for (ULONG i = 0; i < ObjectCount; i++)
+            {
+                HANDLE h = ObjectsArray[i];
+                if (!h) continue;
+                if (h->type == HANDLE_EV)
+                {
+                    pthread_mutex_lock(&h->event.state_mutex);
+                    if (h->event.signaled)
+                    {
+                        if (h->event.type == SynchronizationEvent)
+                            h->event.signaled = 0;
+                        pthread_mutex_unlock(&h->event.state_mutex);
+                        return STATUS_WAIT_0 + i;
+                    }
+                    pthread_mutex_unlock(&h->event.state_mutex);
+                }
+                else
+                {
+                    /* Non-event handle: defer to single-object wait with poll. */
+                    NTSTATUS s = NtWaitForSingleObject(h, Alertable, &zero);
+                    if (s == STATUS_SUCCESS)
+                        return STATUS_WAIT_0 + i;
+                }
+            }
+
+            if (has_deadline)
+            {
+                struct timespec now;
+                clock_gettime(CLOCK_REALTIME, &now);
+                if (now.tv_sec > deadline.tv_sec ||
+                    (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec))
+                    return STATUS_TIMEOUT;
+            }
+            else if (Timeout && !Timeout->QuadPart)
+                return STATUS_TIMEOUT;
+
+            /* sleep 10ms then retry */
+            struct timespec slp = { 0, 10 * 1000 * 1000 };
+            nanosleep(&slp, NULL);
+        }
+    }
 }
 FORWARD_FUNCTION(NtWaitForMultipleObjects, ZwWaitForMultipleObjects);
 
@@ -191,11 +225,8 @@ NTSTATUS NTAPI NtCreateEvent(PHANDLE EventHandle, ACCESS_MASK DesiredAccess,
     (*EventHandle)->event.type = EventType;
     (*EventHandle)->event.signaled = InitialState;
 
-#ifdef THREADED
     pthread_mutex_init(&(*EventHandle)->event.state_mutex, NULL);
-    pthread_mutex_init(&(*EventHandle)->event.cond_mutex, NULL);
     pthread_cond_init(&(*EventHandle)->event.cond, NULL);
-#endif
 
     Log("ntdll.NtCreateEvent(\"%s\")\n", EventA);
 
@@ -220,16 +251,15 @@ NTSTATUS NTAPI NtSetEvent(HANDLE EventHandle, PLONG PreviousState)
 {
     CHECK_HANDLE(EventHandle, HANDLE_EV);
 
-#ifdef THREADED
     pthread_mutex_lock(&EventHandle->event.state_mutex);
-#endif
     if (PreviousState)
         *PreviousState = EventHandle->event.signaled;
     EventHandle->event.signaled = 1;
-#ifdef THREADED
-    pthread_cond_signal(&EventHandle->event.cond);
+    if (EventHandle->event.type == NotificationEvent)
+        pthread_cond_broadcast(&EventHandle->event.cond);
+    else
+        pthread_cond_signal(&EventHandle->event.cond);
     pthread_mutex_unlock(&EventHandle->event.state_mutex);
-#endif
 
     Log("ntdll.NtSetEvent(\"%s\")\n", strhandle(EventHandle));
 
@@ -242,29 +272,30 @@ NTSTATUS NTAPI NtResetEvent(HANDLE EventHandle, PLONG PreviousState)
 
     Log("ntdll.NtReSetEvent(\"%s\")\n", strhandle(EventHandle));
 
-#ifdef THREADED
     pthread_mutex_lock(&EventHandle->event.state_mutex);
-#endif
     if (PreviousState)
         *PreviousState = EventHandle->event.signaled;
     EventHandle->event.signaled = 0;
-#ifdef THREADED
     pthread_mutex_unlock(&EventHandle->event.state_mutex);
-#endif
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS NTAPI NtDelayExecution(BOOLEAN Alertable, PLARGE_INTEGER DelayInterval)
 {
-    Log("ntdll.NtDelayExecution(%d, %llu)\n", Alertable, DelayInterval ? DelayInterval->QuadPart : 0);
-#if 0
-    struct timespec timeout;
-    if (!interval_to_timespec(DelayInterval, &timeout, 1))
+    Log("ntdll.NtDelayExecution(%d, %lld)\n", Alertable, DelayInterval ? DelayInterval->QuadPart : 0);
+
+    if (!DelayInterval || !DelayInterval->QuadPart)
         return STATUS_SUCCESS;
 
-    nanosleep(&timeout, NULL);
-#endif
+    if (DelayInterval->QuadPart < 0)
+    {
+        /* relative interval, 100ns units */
+        LONGLONG ns = -DelayInterval->QuadPart * 100;
+        struct timespec slp = { ns / 1000000000LL, ns % 1000000000LL };
+        nanosleep(&slp, NULL);
+    }
+    /* absolute time: not implemented (no consumer in our guests) */
     return STATUS_SUCCESS;
 }
 

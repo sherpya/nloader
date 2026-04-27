@@ -29,21 +29,19 @@
 
 MODULE(thread)
 
-#ifdef THREADED
-__thread
-#else
-#include <setjmp.h>
-static jmp_buf env;
-static
-#endif
+/* TLS in a shared object loaded at runtime: "initial-exec" generates code that
+ * works for both static-linked and dlopen'd cases on glibc. */
+__thread __attribute__((tls_model("initial-exec")))
 HANDLE CurrentThreadHandle = NULL;
 
 static void *thread_start(void *arg)
 {
-    ThreadProc thread;
-    CurrentThreadHandle = arg;
-    thread = CurrentThreadHandle->thread.StartAddress;
-    return (void *) (CurrentThreadHandle->thread.ExitStatus = thread(CurrentThreadHandle->thread.StartParameter));
+    HANDLE th = arg;
+    ThreadProc proc;
+    CurrentThreadHandle = th;
+    proc = th->thread.StartAddress;
+    th->thread.ExitStatus = proc(th->thread.StartParameter);
+    return (void *) (uintptr_t) th->thread.ExitStatus;
 }
 
 static HANDLE GetThreadHandle(HANDLE ThreadHandle)
@@ -58,22 +56,13 @@ NTSTATUS NTAPI NtTerminateThread(HANDLE ThreadHandle, NTSTATUS ExitStatus)
 {
     ThreadHandle = GetThreadHandle(ThreadHandle);
 
-    if (ExitStatus != STATUS_SUCCESS)
-    {
-        fprintf(stderr, "ntdll.NtTerminateThread(\"%s\", 0x%08x)\n", strhandle(ThreadHandle), ExitStatus);
-        abort();
-    }
-
     Log("ntdll.NtTerminateThread(\"%s\", 0x%08x)\n", strhandle(ThreadHandle), ExitStatus);
 
-    ThreadHandle->thread.ExitStatus = ExitStatus;
-#ifdef THREADED
-    pthread_exit(&ThreadHandle->thread.ExitStatus);
-#else
-    longjmp(env, 1);
-#endif
+    if (ThreadHandle)
+        ThreadHandle->thread.ExitStatus = ExitStatus;
 
-    return STATUS_SUCCESS;
+    pthread_exit(ThreadHandle ? &ThreadHandle->thread.ExitStatus : NULL);
+    return STATUS_SUCCESS;  /* unreachable */
 }
 FORWARD_FUNCTION(NtTerminateThread, ZwTerminateThread);
 
@@ -95,16 +84,11 @@ NTSTATUS NTAPI RtlCreateUserThread(HANDLE ProcessHandle, /*PSECURITY_DESCRIPTOR*
     th->thread.StartParameter = StartParameter;
     th->thread.ExitStatus = -1;
 
-#ifdef THREADED
     if (pthread_create(&th->thread.tid, NULL, thread_start, (void *) th))
     {
         RtlFreeHeap(GetProcessHeap(), 0, th);
         return STATUS_UNSUCCESSFUL;
     }
-#else
-    if (!setjmp(env))
-        thread_start(th);
-#endif
     *ThreadHandle = th;
 
     return STATUS_SUCCESS;
@@ -153,17 +137,24 @@ NTSTATUS NTAPI NtSetThreadExecutionState(EXECUTION_STATE esFlags, EXECUTION_STAT
     return STATUS_SUCCESS;
 }
 
-/* critical sections */
+/* critical sections — Windows critical sections are recursive on the same
+ * thread, so we use PTHREAD_MUTEX_RECURSIVE. */
 
 NTSTATUS NTAPI RtlInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
 {
+    pthread_mutexattr_t attr;
+    pthread_mutex_t *m;
+
     CHECK_POINTER(CriticalSection);
     Log("ntdll.RtlInitializeCriticalSection(%p)\n", CriticalSection);
     memset(CriticalSection, 0, sizeof(RTL_CRITICAL_SECTION));
-#ifdef THREADED
-    CriticalSection->LockSemaphore = RtlAllocateHeap(GetProcessHeap(), 0, sizeof(pthread_mutex_t));
-    pthread_mutex_init((pthread_mutex_t *) CriticalSection->LockSemaphore, NULL);
-#endif
+
+    m = RtlAllocateHeap(GetProcessHeap(), 0, sizeof(pthread_mutex_t));
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(m, &attr);
+    pthread_mutexattr_destroy(&attr);
+    CriticalSection->LockSemaphore = (HANDLE) m;
     return STATUS_SUCCESS;
 }
 
@@ -171,27 +162,22 @@ NTSTATUS NTAPI RtlDeleteCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
 {
     CHECK_POINTER(CriticalSection);
     Log("ntdll.RtlDeleteCriticalSection(%p)\n", CriticalSection);
-#ifdef THREADED
     pthread_mutex_destroy((pthread_mutex_t *) CriticalSection->LockSemaphore);
     RtlFreeHeap(GetProcessHeap(), 0, CriticalSection->LockSemaphore);
-#endif
+    CriticalSection->LockSemaphore = NULL;
     return STATUS_SUCCESS;
 }
 
 NTSTATUS NTAPI RtlEnterCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
 {
     Log("ntdll.RtlEnterCriticalSection(%p)\n", CriticalSection);
-#ifdef THREADED
     pthread_mutex_lock((pthread_mutex_t *) CriticalSection->LockSemaphore);
-#endif
     return STATUS_SUCCESS;
 }
 
 NTSTATUS NTAPI RtlLeaveCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
 {
     Log("ntdll.RtlLeaveCriticalSection(%p)\n", CriticalSection);
-#ifdef THREADED
     pthread_mutex_unlock((pthread_mutex_t *) CriticalSection->LockSemaphore);
-#endif
     return STATUS_SUCCESS;
 }

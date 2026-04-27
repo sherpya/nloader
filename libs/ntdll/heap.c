@@ -87,7 +87,7 @@ PVOID NTAPI RtlReAllocateHeap(PVOID HeapHandle, ULONG Flags, PVOID MemoryPointer
         return RtlAllocateHeap(HeapHandle, Flags, Size);
 
     OldSize = HEAP_OFFSIZE(MemoryPointer);
-    MemoryPointer = realloc((PVOID) HEAP_OFFSIZE(MemoryPointer), Size + (sizeof(uint32_t) * 2));
+    MemoryPointer = realloc((PVOID)((uint32_t *) MemoryPointer - 2), Size + (sizeof(uint32_t) * 2));
 
     assert(MemoryPointer);
 

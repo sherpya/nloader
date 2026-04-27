@@ -29,25 +29,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <string.h>
+#include <assert.h>
 #include <sys/types.h>
 
 #include "nt_structs.h"
 
+#if defined(__x86_64__)
+/* Hard-coded offsets used by stubs_x64.asm. Verify they match the C struct. */
+_Static_assert(offsetof(TEB, LogModule)        == 0xf0, "TEB.LogModule offset drift");
+_Static_assert(offsetof(TEB, NtTib.StackBase)  == 0x08, "TEB.StackBase offset drift");
+_Static_assert(offsetof(TEB, Peb)              == 0x60, "TEB.Peb offset drift");
+#endif
+
 MODULE(loader)
 
 struct pe_image_file_hdr pe_hdr;
-struct pe_image_optional_hdr32 pe_opt;
+pe_image_optional_hdr_t pe_opt;
 struct pe_image_section_hdr sections[16];
 
 char **import_names = NULL;
 void **import_addrs = NULL;
 uint8_t *stubs = NULL;
-uint32_t *thunks = NULL;
+uintptr_t *thunks = NULL;
 unsigned int nfuncs = 0;
 
-extern void stub(void);
 extern unsigned int sizeof_stub(void);
+#if defined(__x86_64__)
+extern void stub_dispatch(void);
+static inline void emit_stub(uint8_t *p, unsigned idx) {
+    /* push imm32 (idx) ; mov rax, imm64 stub_dispatch ; jmp rax
+     * (17 bytes — position-independent across full 64-bit address space) */
+    p[0] = 0x68;
+    *(uint32_t *)(p + 1) = (uint32_t)idx;
+    p[5] = 0x48;
+    p[6] = 0xB8;
+    *(uint64_t *)(p + 7) = (uint64_t)(uintptr_t)stub_dispatch;
+    p[15] = 0xFF;
+    p[16] = 0xE0;
+}
+#else
+extern void stub(void);
+static inline void emit_stub(uint8_t *p, unsigned idx) {
+    (void)idx;
+    memcpy(p, stub, sizeof_stub());
+}
+#endif
 
 static int log_always = 0;
 static char **modules = NULL;
@@ -99,8 +127,9 @@ static void _NoLogModule(const char *module, const char *format, ...) {}
 void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
     unsigned int i;
 #ifndef _WIN32
-    struct modify_ldt_s fs_ldt;
-    PEB_LDR_DATA ldr_data;
+    /* Singletons: their addresses are handed to the guest via teb->Peb and
+     * peb.LdrData respectively, so they must outlive setup_nloader. */
+    static PEB_LDR_DATA ldr_data;
 #endif
     TEB *teb;
 
@@ -136,8 +165,8 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	printf("bad pe magic\n");
 	return NULL;
     }
-    if(pe_hdr.Machine != 0x14c) {
-	printf("bad arch\n");
+    if(pe_hdr.Machine != PE_MACHINE_EXPECTED) {
+	printf("bad arch: 0x%x (expected 0x%x)\n", pe_hdr.Machine, PE_MACHINE_EXPECTED);
 	return NULL;
     }
     if(!pe_hdr.NumberOfSections || pe_hdr.NumberOfSections > 16) {
@@ -154,8 +183,8 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	perror("read pe opt");
 	return NULL;
     }
-    if(pe_opt.Magic != 0x10b) {
-	printf("bad opt magic\n");
+    if(pe_opt.Magic != PE_OPT_MAGIC) {
+	printf("bad opt magic: 0x%x (expected 0x%x)\n", pe_opt.Magic, PE_OPT_MAGIC);
 	return NULL;
     }
     if(pe_opt.Subsystem != 1) {
@@ -189,7 +218,7 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	if(image_size < rva + vsz)
 	    image_size = rva + vsz;
     }
-    image = mmap((void *)pe_opt.ImageBase, image_size, PROT_READ|PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
+    image = mmap((void *)(uintptr_t)pe_opt.ImageBase, image_size, PROT_READ|PROT_WRITE, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
 
     if(image == MAP_FAILED) {
 	perror("mmap image");
@@ -216,7 +245,8 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
     /******************************************************************************************************* IAT - libraries */
     while(pe_opt.DataDirectory[1].Size >= sizeof(struct IMAGE_IMPORT)) {
 	struct IMAGE_IMPORT *import = (struct IMAGE_IMPORT *) (image + pe_opt.DataDirectory[1].VirtualAddress);
-	uint32_t *names, *addrs, dllnamelen;
+	pe_thunk_t *names, *addrs;
+	uint32_t dllnamelen;
 	char *dllname;
 	void *handle;
 
@@ -233,18 +263,16 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	    printf("borland-like import table is not supported\n");
 	    return NULL;
 	}
-	names = (uint32_t *)(image + import->OrigThunk);
-	addrs = (uint32_t *)(image + import->Thunk);
+	names = (pe_thunk_t *)(image + import->OrigThunk);
+	addrs = (pe_thunk_t *)(image + import->Thunk);
 	dllname = (char *) (image + import->DllName);
 	dllnamelen = strlen(dllname);
 
 	handle = load_library(standalone ? NULL : dllname);
 
 	if(!handle) {
-	    printf("Loading library %s.so failed with %s, aborting\n", dllname, dlerror());
-	    return NULL;
-	}
-	else if (!standalone)
+	    printf("Library %s.so unavailable (%s) - imports will resolve to stubs\n", dllname, dlerror());
+	} else if (!standalone)
 	    printf("Loading %s.so and resolving imports\n", dllname);
 
 	/******************************************************************************************************* IAT - functions */
@@ -259,16 +287,16 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 		printf("Thunk out of image\n");
 		return NULL;
 	    }
-	    if(*names & 0x80000000) {
-		impname = malloc(8);
+	    if(*names & PE_ORDINAL_FLAG) {
+		impname = malloc(15);
 		if(!impname) {
 		    perror("malloc impname");
 		    return NULL;
 		}
-		sprintf(impname, "ord_%03u", *names & ~0x80000000);
+		sprintf(impname, "ord_%03u", (unsigned)(*names & ~PE_ORDINAL_FLAG));
 		free_impname = 1;
 	    } else
-		impname = (char *) (image + 2 + *names);
+		impname = (char *) (image + 2 + (uint32_t)*names);
 
 	    fname = malloc(dllnamelen + strlen(impname) + 2);
 	    if(!fname) {
@@ -333,7 +361,7 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 		perror("realloc thunks");
 		return NULL;
 	    }
-	    thunks[nfuncs-1] = (uint32_t)addrs;
+	    thunks[nfuncs-1] = (uintptr_t)addrs;
 
 	    names++;
 	    addrs++;
@@ -352,14 +380,14 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	    return NULL;
     	}
     	for(i=0; i<nfuncs; i++) {
-	    uint32_t *thunk = (uint32_t *)thunks[i];
+	    pe_thunk_t *thunk = (pe_thunk_t *)thunks[i];
     	    void *stub_addr = stubs + i * szstub;
 	    if(!CLI_ISCONTAINED(image, image_size, (uint8_t *)thunk, sizeof(*thunk))) {
 		printf("api addr for %s is out of image\n", import_names[i]);
 		return NULL;
 	    }
-	    memcpy(stub_addr, stub, sizeof_stub());
-	    *thunk = (uint32_t)stub_addr;
+	    emit_stub(stub_addr, i);
+	    *thunk = (pe_thunk_t)(uintptr_t)stub_addr;
     	}
 	free(thunks);
 	if(mprotect(stubs, stubslen, PROT_READ|PROT_EXEC) == -1) {
@@ -413,28 +441,25 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
     }
 
 #ifndef _WIN32
-    PEB peb;
+    static PEB peb;
 
     /******************************************************************************************************* TEB setup - main */
-    teb = mmap((void *)0x7efdd000, getpagesize(),  PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    /* Address 0x7efdd000 is the i386 Wine convention for the main thread's TEB
+     * (low-32 so the same constant works on x86_64 too).
+     * The 64-bit TEB is much bigger than a single page (LastStatusValue lives
+     * past 4K), so round sizeof(TEB) up to a page multiple. */
+    {
+	size_t teb_size = PESALIGN(sizeof(TEB), getpagesize());
+	teb = mmap((void *)0x7efdd000, teb_size, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    }
     if(teb == MAP_FAILED) {
 	perror("mmap teb");
 	return NULL;
     }
 
-    /******************************************************************************************************* TEB setup - map teb to fs:0 */
-    memset(&fs_ldt, 0, sizeof(fs_ldt));
-    fs_ldt.entry_number = TEB_SEL_IDX;
-    fs_ldt.base_addr = (unsigned long)teb;
-    fs_ldt.limit = 1;
-    fs_ldt.limit_in_pages = 1;
-    fs_ldt.seg_32bit = 1;
-    fs_ldt.contents = MODIFY_LDT_CONTENTS_DATA;
-    fs_ldt.read_exec_only = 0;
-    fs_ldt.seg_not_present = 0;
-    fs_ldt.useable = 1;
-    if(modify_ldt(1, &fs_ldt, sizeof(fs_ldt)) == -1) {
-	perror("modify_ldt");
+    /******************************************************************************************************* TEB setup - install per-arch */
+    if (install_teb(teb) == -1) {
+	perror("install_teb");
 	return NULL;
     }
 
@@ -558,9 +583,6 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
         perror("mprotect SharedUserData");
         return NULL;
     }
-
-    __asm__ volatile( "movl %0,%%eax; movw %%ax, %%fs" : : "r" (LDT_SEL(fs_ldt.entry_number)) :"eax");
-    //__asm__ volatile( "movl %0,%%fs" : : "a" (LDT_SEL(fs_ldt.entry_number)));
 
 #else
     teb = NtCurrentTeb();

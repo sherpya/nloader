@@ -16,8 +16,25 @@
 #define min MIN
 #endif
 
+#if defined(__x86_64__)
+/* The i386 build provides BSF/BSR through bitscan.asm; on x86_64 we use the
+ * compiler intrinsics directly to avoid a separate translation unit. */
+static inline unsigned char BitScanForward(ULONG *Index, LONG Mask)
+{
+    if (!Mask) return 0;
+    *Index = (ULONG)__builtin_ctz((unsigned int)Mask);
+    return 1;
+}
+static inline unsigned char BitScanReverse(ULONG *Index, LONG Mask)
+{
+    if (!Mask) return 0;
+    *Index = (ULONG)(31 - __builtin_clz((unsigned int)Mask));
+    return 1;
+}
+#else
 unsigned char BitScanForward(ULONG *Index, LONG Mask);
 unsigned char BitScanReverse(ULONG *Index, LONG Mask);
+#endif
 
 
 /* DATA *********************************************************************/

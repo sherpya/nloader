@@ -37,6 +37,7 @@
 #endif
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __GNUC__
 #define ATTRIBUTE_USED          __attribute__((used))
@@ -51,7 +52,19 @@
 #define INT3() __asm { int 3 }
 #endif
 
-#ifdef __GNUC__
+#if defined(_WIN64)
+/* Native Win64: single ABI, decorators are no-ops */
+#define WINAPI
+#define CDECL
+#elif defined(__x86_64__) && defined(__GNUC__)
+/* Linux x86_64: native code targets Win64 ABI but the host process is SysV.
+ * Mark Windows-API functions ms_abi so they receive args in (rcx,rdx,r8,r9)
+ * and match what the loaded PE32+ binary emits at every API call site.
+ * libc and other host-process calls remain SysV (default) — GCC inserts the
+ * register shuffle automatically when crossing ABI boundaries. */
+#define WINAPI __attribute__((ms_abi))
+#define CDECL
+#elif defined(__GNUC__)
 #define WINAPI __attribute__((stdcall))
 #define CDECL  __attribute__((cdecl))
 #else
@@ -65,7 +78,7 @@
 #define DECLSPEC_IMPORT __declspec(dllimport)
 typedef int (WINAPI *FARPROC)(void);
 
-#define FIELD_OFFSET(Type, Field)   ((LONG) (&(((Type *) 0)->Field)))
+#define FIELD_OFFSET(Type, Field)   ((LONG) (LONG_PTR) (&(((Type *) 0)->Field)))
 #define PAGE_SIZE                   getpagesize()
 #define PAGE_ALIGN(Va)              ((PVOID) ((ULONG_PTR)(Va) & ~(PAGE_SIZE - 1)))
 #define ROUND_TO_PAGES(Size)        ((ULONG_PTR) (((ULONG_PTR) Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)))
@@ -85,6 +98,21 @@ typedef int (WINAPI *FARPROC)(void);
 
 #ifdef _WIN32 // via .def
 #define FORWARD_FUNCTION(have, need)
+#elif defined(__x86_64__)
+/* Win64 caller passes args in (rcx,rdx,r8,r9); libc target wants
+ * SysV (rdi,rsi,rdx,rcx). Shuffle up to 4 register args, then tail-jmp.
+ * Stack args (arg5+) live above the retaddr in both ABIs, so we don't
+ * touch them — every forwarded function in this loader takes ≤4 args. */
+#define FORWARD_FUNCTION(have, need)            \
+    asm(                                        \
+    ".text                              \n\t"   \
+    ".globl "Q(need)"                   \n\t"   \
+    Q(need)":                           \n\t"   \
+    "mov %rcx, %rdi                     \n\t"   \
+    "mov %rdx, %rsi                     \n\t"   \
+    "mov %r8, %rdx                      \n\t"   \
+    "mov %r9, %rcx                      \n\t"   \
+    "jmp "MANGLE(have)"")
 #else
 #define FORWARD_FUNCTION(have, need)            \
     asm(                                        \
@@ -97,6 +125,14 @@ typedef int (WINAPI *FARPROC)(void);
 #define IN
 #define OUT
 #define OPTIONAL
+
+#ifdef _WIN32
+#include <sal.h>
+#else
+#define _In_
+#define _Inout_
+#endif
+
 
 #define HANDLE_HEAP             (HANDLE)(0x1337)
 #define INVALID_HANDLE_VALUE    (HANDLE)(-1)
@@ -112,6 +148,9 @@ typedef int (WINAPI *FARPROC)(void);
 #define MODULE(name) static ATTRIBUTE_USED const char __module__[] = #name;
 #define Log(format, ...) NtCurrentTeb()->LogModule(__module__, format, ##__VA_ARGS__)
 
+/* SysV ABI on x86_64: LogModule formats via libc vfprintf, and ms_abi va_list
+ * is incompatible with SysV vfprintf. Keep LogModule on the host ABI; gcc
+ * inserts the register shuffle when ms_abi callers go through this pointer. */
 typedef void (*LogModuleFunc)(const char *module, const char *format, ...);
 
 #define TRUE  1
@@ -128,6 +167,11 @@ struct pe_image_file_hdr {
     uint16_t Characteristics;
 };
 
+
+struct pe_image_data_dir {
+    uint32_t VirtualAddress;
+    uint32_t Size;
+};
 
 struct pe_image_optional_hdr32 {
     uint16_t Magic;
@@ -160,11 +204,56 @@ struct pe_image_optional_hdr32 {
     uint32_t SizeOfHeapCommit;
     uint32_t LoaderFlags;
     uint32_t NumberOfRvaAndSizes;
-    struct pe_image_data_dir {
-        uint32_t VirtualAddress;
-	uint32_t Size;
-    } DataDirectory[16];
+    struct pe_image_data_dir DataDirectory[16];
 };
+
+/* PE32+ optional header: BaseOfData removed, several fields widened to 64-bit */
+struct pe_image_optional_hdr64 {
+    uint16_t Magic;
+    uint8_t  MajorLinkerVersion;
+    uint8_t  MinorLinkerVersion;
+    uint32_t SizeOfCode;
+    uint32_t SizeOfInitializedData;
+    uint32_t SizeOfUninitializedData;
+    uint32_t AddressOfEntryPoint;
+    uint32_t BaseOfCode;
+    uint64_t ImageBase;
+    uint32_t SectionAlignment;
+    uint32_t FileAlignment;
+    uint16_t MajorOperatingSystemVersion;
+    uint16_t MinorOperatingSystemVersion;
+    uint16_t MajorImageVersion;
+    uint16_t MinorImageVersion;
+    uint16_t MajorSubsystemVersion;
+    uint16_t MinorSubsystemVersion;
+    uint32_t Win32VersionValue;
+    uint32_t SizeOfImage;
+    uint32_t SizeOfHeaders;
+    uint32_t CheckSum;
+    uint16_t Subsystem;
+    uint16_t DllCharacteristics;
+    uint64_t SizeOfStackReserve;
+    uint64_t SizeOfStackCommit;
+    uint64_t SizeOfHeapReserve;
+    uint64_t SizeOfHeapCommit;
+    uint32_t LoaderFlags;
+    uint32_t NumberOfRvaAndSizes;
+    struct pe_image_data_dir DataDirectory[16];
+};
+
+#if defined(__x86_64__) || defined(_WIN64)
+typedef struct pe_image_optional_hdr64  pe_image_optional_hdr_t;
+typedef uint64_t                        pe_thunk_t;
+#define PE_OPT_MAGIC                    0x20b
+#define PE_MACHINE_EXPECTED             0x8664
+#define PE_ORDINAL_FLAG                 0x8000000000000000ULL
+#else
+typedef struct pe_image_optional_hdr32  pe_image_optional_hdr_t;
+typedef uint32_t                        pe_thunk_t;
+#define PE_OPT_MAGIC                    0x10b
+#define PE_MACHINE_EXPECTED             0x14c
+#define PE_ORDINAL_FLAG                 0x80000000U
+#endif
 
 struct pe_image_section_hdr {
     uint8_t Name[8];
@@ -711,9 +800,15 @@ enum
 
 static inline TEB *NtCurrentTeb(void)
 {
-#ifdef __GNUC__
+#if defined(__GNUC__)
     TEB *teb;
+# if defined(__x86_64__)
+    /* Win64 layout: TIB.Self at gs:0x30 */
+    asm ("movq %%gs:0x30, %0" : "=r" (teb));
+# else
+    /* Win32 layout: TIB.Self at fs:0x18 */
     asm ("movl %%fs:0x18, %0" : "=r" (teb));
+# endif
     return teb;
 #else
     __asm mov eax, fs:[0x18];

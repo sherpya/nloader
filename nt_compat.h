@@ -198,13 +198,20 @@ static inline int mprotect(void *addr, size_t len, int prot)
 }
 
 #else
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <dlfcn.h>
 #include <sys/mman.h>
 #include <time.h>
 
 #if defined(__linux)
-#include <asm/ldt.h>
+# if defined(__i386__)
+#  include <asm/ldt.h>
+# elif defined(__x86_64__)
+#  include <asm/prctl.h>
+#  include <sys/syscall.h>
+# endif
 #include <sys/sysinfo.h>
 #elif defined(__FreeBSD__)
 #include <machine/segments.h>
@@ -245,6 +252,11 @@ static inline void *load_library(const char *dllname)
     return dlopen(libpath, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);
 }
 
+/* TEB pointer install: makes the per-thread "current TEB" register point at
+ * the supplied TEB. On x86 Linux we allocate a per-process LDT entry and load
+ * it into FS; on x86_64 Linux we use arch_prctl to set the GS base directly
+ * (per-thread, restored across context switches by the kernel). */
+#if !defined(__x86_64__)
 struct modify_ldt_s
 {
     unsigned int  entry_number;
@@ -259,10 +271,41 @@ struct modify_ldt_s
 };
 
 #define LDT_SEL(idx) ((idx) << 3 | 1 << 2 | 3)
+#endif
 
 #if defined(__linux)
+
+#if defined(__i386__)
 extern int modify_ldt(int func, struct modify_ldt_s *fs_ldt, unsigned long bytecount);
 #define TEB_SEL_IDX 17
+#endif
+
+#if defined(__x86_64__)
+static inline int install_teb(void *teb)
+{
+    return (int) syscall(SYS_arch_prctl, ARCH_SET_GS, (unsigned long) teb);
+}
+#elif defined(__i386__)
+static inline int install_teb(void *teb)
+{
+    struct modify_ldt_s fs_ldt;
+    memset(&fs_ldt, 0, sizeof(fs_ldt));
+    fs_ldt.entry_number    = TEB_SEL_IDX;
+    fs_ldt.base_addr       = (unsigned long) teb;
+    fs_ldt.limit           = 1;
+    fs_ldt.limit_in_pages  = 1;
+    fs_ldt.seg_32bit       = 1;
+    fs_ldt.contents        = MODIFY_LDT_CONTENTS_DATA;
+    fs_ldt.read_exec_only  = 0;
+    fs_ldt.seg_not_present = 0;
+    fs_ldt.useable         = 1;
+    if (modify_ldt(1, &fs_ldt, sizeof(fs_ldt)) == -1)
+        return -1;
+    __asm__ volatile("movl %0, %%eax; movw %%ax, %%fs"
+                     : : "r" (LDT_SEL(fs_ldt.entry_number)) : "eax");
+    return 0;
+}
+#endif
 
 static inline int uptime(void)
 {

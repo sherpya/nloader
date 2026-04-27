@@ -2,6 +2,12 @@
 ntdll_sources   =   $(wildcard $(top)/libs/ntdll/*.c)
 ntdll_objects   =   $(ntdll_sources:.c=.o)
 ntdll_asm       =   $(wildcard $(top)/libs/ntdll/*.asm)
+
+# i386-only assembly helpers (the 64-bit compiler emits native instructions instead)
+ifeq ($(ARCH),x86_64)
+    ntdll_asm   :=  $(filter-out %_aulldvrm.asm %bitscan.asm,$(ntdll_asm))
+endif
+
 ntdll_objects   +=  $(ntdll_asm:.asm=.o)
 ntdll_deps      =   $(ntdll_sources:.c=.d)
 

@@ -520,11 +520,11 @@ NTSTATUS NTAPI NtDeviceIoControlFile(HANDLE FileHandle, HANDLE Event, PIO_APC_RO
 
             if (geo->Cylinders.QuadPart < 2)
             {
-                fprintf(stderr, "ntdll.NtDeviceIoControlFile(IOCTL_DISK_GET_DRIVE_GEOMETRY, Cylinders = %llu) - TOO SMALL!!\n", geo->Cylinders.QuadPart);
+                fprintf(stderr, "ntdll.NtDeviceIoControlFile(IOCTL_DISK_GET_DRIVE_GEOMETRY, Cylinders = %llu) - TOO SMALL!!\n", (unsigned long long)geo->Cylinders.QuadPart);
                 return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
             }
 
-            Log("ntdll.NtDeviceIoControlFile(IOCTL_DISK_GET_DRIVE_GEOMETRY, Cylinders = %llu)\n", geo->Cylinders.QuadPart);
+            Log("ntdll.NtDeviceIoControlFile(IOCTL_DISK_GET_DRIVE_GEOMETRY, Cylinders = %llu)\n", (unsigned long long)geo->Cylinders.QuadPart);
 
             IoStatusBlock->Information = sizeof(DISK_GEOMETRY);
             IoStatusBlock->u.Status = STATUS_SUCCESS;

@@ -63,8 +63,8 @@ NTSTATUS NTAPI NtAllocateVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress,
     address = mmap(address, size, prot, flags, -1, 0);
     *RegionSize = size;
 
-    Log("ntdll.NtAllocateVirtualMemory(%d, %p, 0x%08x, %d, 0x%08x, 0x%08x) = %p/%d\n", (int) ProcessHandle,
-        *BaseAddress, ZeroBits, *RegionSize, AllocationType, Protect, address, size);
+    Log("ntdll.NtAllocateVirtualMemory(%p, %p, 0x%08x, %zu, 0x%08x, 0x%08x) = %p/%zu\n", ProcessHandle,
+        *BaseAddress, ZeroBits, (size_t) *RegionSize, AllocationType, Protect, address, (size_t) size);
 
     if (address)
     {
@@ -78,7 +78,7 @@ FORWARD_FUNCTION(NtAllocateVirtualMemory, ZwAllocateVirtualMemory);
 
 NTSTATUS NTAPI NtFreeVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize, ULONG FreeType)
 {
-    Log("ntdll.NtFreeVirtualMemory(%d, %p, %d, 0x%08x)\n", (int) ProcessHandle, *BaseAddress, *RegionSize, FreeType);
+    Log("ntdll.NtFreeVirtualMemory(%p, %p, %zu, 0x%08x)\n", ProcessHandle, *BaseAddress, (size_t) *RegionSize, FreeType);
 
     if (munmap(*BaseAddress, ROUND_TO_PAGES(*RegionSize)) < 0)
         return STATUS_UNSUCCESSFUL;

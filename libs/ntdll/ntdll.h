@@ -46,9 +46,7 @@ typedef long long _off_t;
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifdef THREADED
 #include <pthread.h>
-#endif
 
 typedef enum _EVENT_TYPE {
     NotificationEvent,
@@ -77,18 +75,13 @@ typedef struct _HANDLE
         {
             EVENT_TYPE type;
             int signaled;
-#ifdef THREADED
             pthread_mutex_t state_mutex;
-            pthread_mutex_t cond_mutex;
             pthread_cond_t cond;
-#endif
         } event;
 
         struct
         {
-#ifdef THREADED
             pthread_t tid;
-#endif
             int ExitStatus;
             void *StartAddress;
             void *StartParameter;
