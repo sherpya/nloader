@@ -67,16 +67,24 @@ SECTION .text
 ; the resolved function's RET returns straight to the original caller.
 
 cfunction stub_dispatch
+    ; rsi and rdi are non-volatile in the Win64 (ms_abi) ABI but volatile in
+    ; SysV — the LogModule call below uses them as SysV arg0/arg1, which would
+    ; leak SysV-volatile semantics back to the ms_abi caller. Save them here
+    ; (along with the rbp/rbx we touch) and restore in tear-down.
     push    rbp                         ; rsp%16 = 8
     push    rbx                         ; rsp%16 = 0
+    push    rsi                         ; rsp%16 = 8
+    push    rdi                         ; rsp%16 = 0
     mov     rbp, rsp                    ; anchor
-    ; After the two pushes:
-    ;   [rbp + 0x00] = saved rbx
-    ;   [rbp + 0x08] = saved rbp
-    ;   [rbp + 0x10] = idx (32-bit, sign-extended)
-    ;   [rbp + 0x18] = retaddr of caller of the stub
+    ; After the four pushes:
+    ;   [rbp + 0x00] = saved rdi
+    ;   [rbp + 0x08] = saved rsi
+    ;   [rbp + 0x10] = saved rbx
+    ;   [rbp + 0x18] = saved rbp
+    ;   [rbp + 0x20] = idx (32-bit, sign-extended)
+    ;   [rbp + 0x28] = retaddr of caller of the stub
 
-    mov     ebx, dword [rbp + 0x10]     ; ebx = idx (zero-extends)
+    mov     ebx, dword [rbp + 0x20]     ; ebx = idx (zero-extends)
 
     ; Local frame: 0x20 shadow + 0x20 arg saves + 0x10 stash/pad = 0x50
     ; rsp%16 stays 0.
@@ -111,7 +119,7 @@ cfunction stub_dispatch
     lea     rdi, [rel __module__]
     lea     rsi, [rel msg_called]
     mov     rdx, r11                    ; name
-    mov     rcx, [rbp + 0x18]           ; retaddr
+    mov     rcx, [rbp + 0x28]           ; retaddr
     xor     eax, eax                    ; SysV: AL = #XMM args (0)
     call    rbx
     mov     r10, [rsp + 0x40]
@@ -124,8 +132,10 @@ cfunction stub_dispatch
 
     ; Tear down. Goal: stack should look like a normal call to resolved_fn,
     ; i.e. [rsp] = original retaddr.
-    mov     rax, [rbp + 0x18]           ; original retaddr
+    mov     rax, [rbp + 0x28]           ; original retaddr
     mov     rsp, rbp                    ; pop local frame
+    pop     rdi
+    pop     rsi
     pop     rbx
     pop     rbp
     ; Now [rsp + 0x00] = idx, [rsp + 0x08] = retaddr (still both on stack)

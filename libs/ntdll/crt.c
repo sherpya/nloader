@@ -257,9 +257,7 @@ SIZE_T rpl_wcsspn(LPCWSTR wcs, LPCWSTR accept)
 /* ctype */
 int CDECL rpl_isspace(int c)
 {
-    if (((unsigned) c <= 255) && strchr(" \f\n\r\t", c))
-        return 1;
-    return 0;
+    return (c && (unsigned) c <= 255 && strchr(" \f\n\r\t", c)) ? 1 : 0;
 }
 
 int CDECL rpl_isprint(int c)

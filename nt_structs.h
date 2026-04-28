@@ -59,11 +59,14 @@
 #elif defined(__x86_64__) && defined(__GNUC__)
 /* Linux x86_64: native code targets Win64 ABI but the host process is SysV.
  * Mark Windows-API functions ms_abi so they receive args in (rcx,rdx,r8,r9)
- * and match what the loaded PE32+ binary emits at every API call site.
+ * and match what the loaded PE32+ binary emits at every API call site. On
+ * x86_64 there is no distinction between stdcall and cdecl, so CDECL must
+ * also be ms_abi — guest binaries call libntdll's ANSI/ctype helpers using
+ * the same Win64 register convention.
  * libc and other host-process calls remain SysV (default) — GCC inserts the
  * register shuffle automatically when crossing ABI boundaries. */
 #define WINAPI __attribute__((ms_abi))
-#define CDECL
+#define CDECL  __attribute__((ms_abi))
 #elif defined(__GNUC__)
 #define WINAPI __attribute__((stdcall))
 #define CDECL  __attribute__((cdecl))
