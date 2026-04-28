@@ -27,9 +27,53 @@
 
 #include "ntdll.h"
 #include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
+#include <strings.h>
 
 MODULE(crt)
 
+#if defined(__x86_64__) && !defined(_WIN32)
+/* On x86_64 Linux, libc is sysv and the guest is Win64. A bare tail-jmp
+ * to libc clobbers Win64 non-volatiles (rdi/rsi/xmm6-15 are sysv-volatile),
+ * which the guest expects to survive across the call. Wrap each forward
+ * with an ms_abi C function — GCC saves/restores the relevant non-volatiles
+ * around the sysv call automatically. */
+int CDECL rpl_memcmp(const void *s1, const void *s2, size_t n)
+    { return memcmp(s1, s2, n); }
+void * CDECL rpl_memcpy(void *dest, const void *src, size_t n)
+    { return memcpy(dest, src, n); }
+void * CDECL rpl_memset(void *s, int c, size_t n)
+    { return memset(s, c, n); }
+void * CDECL rpl_memmove(void *dest, const void *src, size_t n)
+    { return memmove(dest, src, n); }
+long long CDECL rpl__atoi64(const char *nptr)
+    { return atoll(nptr); }
+int CDECL rpl_atoi(const char *nptr)
+    { return atoi(nptr); }
+int CDECL rpl__stricmp(const char *s1, const char *s2)
+    { return strcasecmp(s1, s2); }
+int CDECL rpl__strnicmp(const char *s1, const char *s2, size_t n)
+    { return strncasecmp(s1, s2, n); }
+char * CDECL rpl_strncpy(char *dest, const char *src, size_t n)
+    { return strncpy(dest, src, n); }
+char * CDECL rpl_strpbrk(const char *s, const char *accept)
+    { return strpbrk(s, accept); }
+size_t CDECL rpl_strspn(const char *s, const char *accept)
+    { return strspn(s, accept); }
+/* qsort takes a callback — the guest's compar is ms_abi but libc qsort
+ * invokes it sysv. Bridge through a thunk that re-shuffles args. The
+ * thunk is per-call (closure-style) so we stash the guest callback in a
+ * thread-local. autochk doesn't appear to call qsort in the boot path,
+ * so this stays unimplemented for now. */
+void CDECL rpl_qsort(void *base, size_t nmemb, size_t size,
+    int (CDECL *compar)(const void *, const void *))
+{
+    (void)base; (void)nmemb; (void)size; (void)compar;
+    fprintf(stderr, "rpl_qsort: cross-ABI callback bridge unimplemented\n");
+    abort();
+}
+#else
 FORWARD_FUNCTION(memcmp, rpl_memcmp);
 FORWARD_FUNCTION(memcpy, rpl_memcpy);
 FORWARD_FUNCTION(memset, rpl_memset);
@@ -42,6 +86,7 @@ FORWARD_FUNCTION(strncasecmp, rpl__strnicmp);
 FORWARD_FUNCTION(strncpy, rpl_strncpy);
 FORWARD_FUNCTION(strpbrk, rpl_strpbrk);
 FORWARD_FUNCTION(strspn, rpl_strspn);
+#endif
 
 // long is always 32bit on win32
 LONG CDECL rpl_atol(const char *nptr)

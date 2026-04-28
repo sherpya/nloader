@@ -62,7 +62,9 @@ NTSTATUS NTAPI NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformati
 {
     NTSTATUS result = STATUS_BUFFER_TOO_SMALL;
 
-    Log("ntdll.NtQuerySystemInformation(%s:0x%08x)", strsysinfo(SystemInformationClass), SystemInformationClass);
+    Log("ntdll.NtQuerySystemInformation(%s:0x%08x, len=%u, sizeof_basic=%zu, sizeof_perf=%zu)",
+        strsysinfo(SystemInformationClass), SystemInformationClass, (unsigned) SystemInformationLength,
+        sizeof(SYSTEM_BASIC_INFORMATION), sizeof(SYSTEM_PERFORMANCE_INFORMATION));
 
     switch (SystemInformationClass)
     {
@@ -75,6 +77,12 @@ NTSTATUS NTAPI NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformati
                 break;
 
             fill_sysinfo(SystemInformation);
+            {
+                SYSTEM_BASIC_INFORMATION *sbi = SystemInformation;
+                Log(" -> PageSize=%u Low=%p High=%p NumProc=%u",
+                    (unsigned) sbi->PageSize, sbi->LowestUserAddress, sbi->HighestUserAddress,
+                    (unsigned) sbi->NumberOfProcessors);
+            }
             result = STATUS_SUCCESS;
             break;
         }
@@ -87,6 +95,10 @@ NTSTATUS NTAPI NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformati
                 break;
 
             fill_perfinfo(SystemInformation);
+            {
+                SYSTEM_PERFORMANCE_INFORMATION *spi = SystemInformation;
+                Log(" -> AvailablePages=%u", (unsigned) spi->AvailablePages);
+            }
             result = STATUS_SUCCESS;
             break;
         }

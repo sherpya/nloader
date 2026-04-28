@@ -101,22 +101,13 @@ typedef int (WINAPI *FARPROC)(void);
 
 #ifdef _WIN32 // via .def
 #define FORWARD_FUNCTION(have, need)
-#elif defined(__x86_64__)
-/* Win64 caller passes args in (rcx,rdx,r8,r9); libc target wants
- * SysV (rdi,rsi,rdx,rcx). Shuffle up to 4 register args, then tail-jmp.
- * Stack args (arg5+) live above the retaddr in both ABIs, so we don't
- * touch them — every forwarded function in this loader takes ≤4 args. */
-#define FORWARD_FUNCTION(have, need)            \
-    asm(                                        \
-    ".text                              \n\t"   \
-    ".globl "Q(need)"                   \n\t"   \
-    Q(need)":                           \n\t"   \
-    "mov %rcx, %rdi                     \n\t"   \
-    "mov %rdx, %rsi                     \n\t"   \
-    "mov %r8, %rdx                      \n\t"   \
-    "mov %r9, %rcx                      \n\t"   \
-    "jmp "MANGLE(have)"")
 #else
+/* Plain alias: `need` is an entry point that tail-jumps to `have`. Both
+ * sides must share the calling convention. On x86_64 every internal
+ * function is ms_abi (NTAPI/WINAPI/CDECL all expand to ms_abi), so a bare
+ * jmp preserves rcx/rdx/r8/r9 untouched. Cross-ABI bridges to libc
+ * (sysv) need explicit C wrappers — see libs/ntdll/crt.c — so GCC saves
+ * Win64 non-volatiles (rdi, rsi, xmm6-15) around the sysv call. */
 #define FORWARD_FUNCTION(have, need)            \
     asm(                                        \
     ".text                              \n\t"   \
