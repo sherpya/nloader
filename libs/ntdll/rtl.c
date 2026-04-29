@@ -139,10 +139,10 @@ NTSTATUS NTAPI RtlUpcaseUnicodeString(PUNICODE_STRING DestinationString,
 NTSTATUS NTAPI RtlFindMessage(HMODULE hmod, ULONG type, ULONG lang, ULONG msg_id, const MESSAGE_RESOURCE_ENTRY **ret)
 {
     ULONG_PTR root;
-    struct pe_image_optional_hdr32 *pe_opt;
+    pe_image_optional_hdr_t *pe_opt;
     const IMAGE_RESOURCE_DIRECTORY *rd;
     const IMAGE_RESOURCE_DATA_ENTRY *rde;
-    DWORD pe_off;
+    ULONG_PTR pe_off;
     unsigned int level = 1, i = 0, len;
 
     CHECK_POINTER(ret);
@@ -151,7 +151,7 @@ NTSTATUS NTAPI RtlFindMessage(HMODULE hmod, ULONG type, ULONG lang, ULONG msg_id
 
     *ret = NULL;
     pe_off = hmod + (*(DWORD *)(hmod + 0x3c));
-    pe_opt = (struct pe_image_optional_hdr32 *) (pe_off + sizeof(struct pe_image_file_hdr));
+    pe_opt = (pe_image_optional_hdr_t *) (pe_off + sizeof(struct pe_image_file_hdr));
 
     if (pe_opt->DataDirectory[2].Size == 0)
     {
