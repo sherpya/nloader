@@ -516,6 +516,12 @@ BOOLEAN NTAPI RtlDosPathNameToNtPathName_U(PCWSTR dos_path, PUNICODE_STRING ntpa
     return TRUE;
 }
 
+NTSTATUS NTAPI RtlDosPathNameToNtPathName_U_WithStatus(PCWSTR dos_path, PUNICODE_STRING ntpath, PWSTR* file_part, CURDIR* cd)
+{
+    return RtlDosPathNameToNtPathName_U(dos_path, ntpath, file_part, cd)
+        ? STATUS_SUCCESS : STATUS_OBJECT_NAME_INVALID;
+}
+
 NTSTATUS NTAPI RtlExpandEnvironmentStrings_U(PVOID Environment, PUNICODE_STRING SourceString,
     PUNICODE_STRING DestinationString, PULONG DestinationBufferLength)
 {
