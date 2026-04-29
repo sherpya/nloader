@@ -30,11 +30,18 @@ Finally, it jumps to the `EP` and lets the alien code do its thing.
 How to compile
 --------------
 
-You need GNU make (sometimes called gmake) and yasm.
-Simply run make from the top source directory.
+You need CMake (>= 3.20) and yasm.
+
+```
+cmake -B build
+cmake --build build -j
+```
+
+By default the build matches the host architecture. To force a 32-bit build
+on an x86_64 host pass `-DNLOADER_ARCH=i386` at configure time.
 
 If you are on Linux OS and provide an autochk.exe by placing it at the toplevel
-directory, the makefile will make for you a standalone executable that also contains
+directory, the build will produce a standalone executable that also contains
 the native Windows executable, suitable for a Live CD.
 
 You can find a suitable autochk.exe directly in windows 7 sp1 x86 (KB976932).
