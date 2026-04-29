@@ -522,6 +522,26 @@ NTSTATUS NTAPI RtlDosPathNameToNtPathName_U_WithStatus(PCWSTR dos_path, PUNICODE
         ? STATUS_SUCCESS : STATUS_OBJECT_NAME_INVALID;
 }
 
+/* Boot Status Data accessors. nloader has no BSD store, so Get reports
+ * failure and the typical Get→modify→Set caller (e.g. autochk's
+ * UpdateBootStat) skips the whole block. Set stays as a no-op for any
+ * caller that drives it independently of Get. Win11 takes 3 args
+ * (class, buf, len); the phnt-documented 4-arg Set form is unused by the
+ * x86_64 autochk caller, which materializes only RCX/RDX/R8. */
+NTSTATUS NTAPI RtlGetSystemBootStatus(ULONG InformationClass, PVOID DataBuffer, ULONG DataLength)
+{
+    Log("ntdll.RtlGetSystemBootStatus(class=%lu, buf=%p, len=%lu) - no BSD\n",
+        (unsigned long) InformationClass, DataBuffer, (unsigned long) DataLength);
+    return STATUS_UNSUCCESSFUL;
+}
+
+NTSTATUS NTAPI RtlSetSystemBootStatus(ULONG InformationClass, PVOID DataBuffer, ULONG DataLength)
+{
+    Log("ntdll.RtlSetSystemBootStatus(class=%lu, buf=%p, len=%lu) - no-op\n",
+        (unsigned long) InformationClass, DataBuffer, (unsigned long) DataLength);
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS NTAPI RtlExpandEnvironmentStrings_U(PVOID Environment, PUNICODE_STRING SourceString,
     PUNICODE_STRING DestinationString, PULONG DestinationBufferLength)
 {
