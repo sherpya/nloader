@@ -1,0 +1,10 @@
+LIBRARY bcd
+EXPORTS
+
+; bcd.c
+BcdOpenStore=BcdOpenStore@12
+BcdCloseStore=BcdCloseStore@4
+BcdForciblyUnloadStore=BcdForciblyUnloadStore@4
+BcdOpenObject=BcdOpenObject@12
+BcdCloseObject=BcdCloseObject@4
+BcdGetElementData=BcdGetElementData@16
