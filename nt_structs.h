@@ -78,6 +78,32 @@
 #define APIENTRY WINAPI
 #define NTAPI WINAPI
 
+/* va_list flavour for ms_abi varargs.
+ *
+ * On x86_64 Linux, GCC's `va_list` typedef in <stdarg.h> resolves to the SysV
+ * `__va_list_tag[1]` struct regardless of any `__attribute__((ms_abi))` on
+ * the enclosing function. `va_arg` then walks gp_offset / reg_save_area as if
+ * the function were SysV, which crashes the moment the actual va_list is the
+ * Win64 `char *` handed in by an ms_abi caller.
+ *
+ * Use ms_va_list / ms_va_{start,arg,end} for any vararg consumption that
+ * crosses an ms_abi boundary (Windows API entries, ntdll ANSI/wide formatters,
+ * etc.). Elsewhere we fall back to plain stdarg. */
+#if defined(__x86_64__) && defined(__GNUC__) && !defined(_WIN64)
+typedef __builtin_ms_va_list ms_va_list;
+#define ms_va_start(ap, v) __builtin_ms_va_start(ap, v)
+/* GCC's __builtin_va_arg picks the ABI from the type of `ap`: when ap is
+ * __builtin_ms_va_list, it walks Win64 args (8-byte slots) instead of SysV's
+ * gp_offset/reg_save_area dance. There is no separate __builtin_ms_va_arg. */
+#define ms_va_arg(ap, t)   __builtin_va_arg(ap, t)
+#define ms_va_end(ap)      __builtin_ms_va_end(ap)
+#else
+#define ms_va_list va_list
+#define ms_va_start(ap, v) va_start(ap, v)
+#define ms_va_arg(ap, t)   va_arg(ap, t)
+#define ms_va_end(ap)      va_end(ap)
+#endif
+
 #define DECLSPEC_IMPORT __declspec(dllimport)
 typedef int (WINAPI *FARPROC)(void);
 

@@ -120,7 +120,11 @@ static int __emit_int64(int64_t i, const char *fmt, __format_target_t *stream)
 
 // FIXME: missing many types, no width, size has no checks
 // FIXME: check count/size
-static int __format(const WCHAR *format, __format_target_t *stream, size_t count, va_list argv)
+/* All printf-family entries here are ms_abi, so the incoming va_list is
+ * Win64-shaped (a `char *`). Use ms_va_list / ms_va_arg consistently — the
+ * generic `va_list`/`va_arg` would expand to SysV semantics on Linux x86_64
+ * even when the caller is ms_abi, and dereference garbage. */
+static CDECL int __format(const WCHAR *format, __format_target_t *stream, size_t count, ms_va_list argv)
 {
     size_t size = count;
     WCHAR c;
@@ -141,21 +145,21 @@ static int __format(const WCHAR *format, __format_target_t *stream, size_t count
         switch_next: switch ((c = *fmt++))
         {
             case L'c':
-                count -= __emit_wchar(va_arg(argv, int), stream);
+                count -= __emit_wchar(ms_va_arg(argv, int), stream);
                 goto format_next;
 
             case L's':
-                count -= __emit_wstring(va_arg(argv, WCHAR *), stream);
+                count -= __emit_wstring(ms_va_arg(argv, WCHAR *), stream);
                 goto format_next;
 
             case L'w': case L'W':
                 if ((c = *fmt++) == L's')
-                    count -= __emit_wstring(va_arg(argv, WCHAR *), stream);
+                    count -= __emit_wstring(ms_va_arg(argv, WCHAR *), stream);
                  goto format_next;
 
             case L'h': case L'H':
                 if ((c = *fmt++) == L's')
-                    count -= __emit_string(va_arg(argv, char *), stream);
+                    count -= __emit_string(ms_va_arg(argv, char *), stream);
                  goto format_next;
 
             case L'I': case L'i':
@@ -172,12 +176,12 @@ static int __format(const WCHAR *format, __format_target_t *stream, size_t count
                         nfmt[cf++] = 'u';
                 }
                 nfmt[cf] = 0;
-                count -= __emit_int64(va_arg(argv, int64_t), nfmt, stream);
+                count -= __emit_int64(ms_va_arg(argv, int64_t), nfmt, stream);
                 goto format_next;
             case L'd': case L'u': case L'x': case L'X':
                 nfmt[cf++] = (char) c;
                 nfmt[cf] = 0;
-                count -= __emit_int32(va_arg(argv, int32_t), nfmt, stream);
+                count -= __emit_int32(ms_va_arg(argv, int32_t), nfmt, stream);
                 goto format_next;
 
             /* width */
@@ -207,21 +211,21 @@ static int __format(const WCHAR *format, __format_target_t *stream, size_t count
 int CDECL rpl_swprintf(WCHAR *buffer, const WCHAR *format, ...)
 {
     int retval;
-    va_list argptr;
+    ms_va_list argptr;
 
     __format_target_t target;
     target.count = 0;
     target.type = FORMAT_BUFFER;
     target.data = (void *) buffer;
-    va_start(argptr, format);
+    ms_va_start(argptr, format);
 
     retval = __format(format, &target, -1, argptr);
 
-    va_end(argptr);
+    ms_va_end(argptr);
     return retval;
 }
 
-int CDECL rpl__vsnwprintf(WCHAR *buffer, size_t count, const WCHAR *format, va_list argptr)
+int CDECL rpl__vsnwprintf(WCHAR *buffer, size_t count, const WCHAR *format, ms_va_list argptr)
 {
     __format_target_t target;
     target.count = 0;
@@ -233,17 +237,17 @@ int CDECL rpl__vsnwprintf(WCHAR *buffer, size_t count, const WCHAR *format, va_l
 int CDECL rpl_swprintf_s(WCHAR *buffer, size_t sizeOfBuffer, const WCHAR *format, ...)
 {
     int retval;
-    va_list argptr;
+    ms_va_list argptr;
 
     __format_target_t target;
     target.count = 0;
     target.type = FORMAT_BUFFER;
     target.data = (void *) buffer;
-    va_start(argptr, format);
+    ms_va_start(argptr, format);
 
     retval = __format(format, &target, sizeOfBuffer, argptr);
 
-    va_end(argptr);
+    ms_va_end(argptr);
     return retval;
 }
 FORWARD_FUNCTION(rpl_swprintf_s, rpl__snwprintf);
