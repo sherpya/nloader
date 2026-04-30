@@ -542,6 +542,19 @@ NTSTATUS NTAPI RtlSetSystemBootStatus(ULONG InformationClass, PVOID DataBuffer, 
     return STATUS_SUCCESS;
 }
 
+/* The real implementation translates Status via RtlNtStatusToDosError and
+ * stores both fields in the TEB. We don't have the translation table, and no
+ * caller in our flow inspects LastErrorValue, so just stash the raw status
+ * and leave LastErrorValue mirroring it (it's only used as a presence flag). */
+VOID NTAPI RtlSetLastWin32ErrorAndNtStatusFromNtStatus(NTSTATUS Status)
+{
+    TEB *teb = NtCurrentTeb();
+    Log("ntdll.RtlSetLastWin32ErrorAndNtStatusFromNtStatus(0x%08lx)\n",
+        (unsigned long) Status);
+    teb->LastStatusValue = Status;
+    teb->LastErrorValue  = (ULONG) Status;
+}
+
 NTSTATUS NTAPI RtlExpandEnvironmentStrings_U(PVOID Environment, PUNICODE_STRING SourceString,
     PUNICODE_STRING DestinationString, PULONG DestinationBufferLength)
 {

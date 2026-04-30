@@ -25,3 +25,8 @@ NTSTATUS EtwEventSetInformation(REGHANDLE RegHandle, EVENT_INFO_CLASS Informatio
 {
     return STATUS_SUCCESS;
 }
+
+NTSTATUS EtwEventUnregister(REGHANDLE RegHandle)
+{
+    return STATUS_SUCCESS;
+}
