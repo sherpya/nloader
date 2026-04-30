@@ -29,6 +29,15 @@
 
 #include <fcntl.h>
 
+/* Defined in sync.c. Used to signal the optional completion Event handle on
+ * NtReadFile / NtWriteFile — autochk uses this for "async" I/O even though
+ * we always read synchronously here. */
+extern NTSTATUS NTAPI NtSetEvent(HANDLE EventHandle, PLONG PreviousState);
+
+/* PIO_APC_ROUTINE is typedef'd as `void *` in winternl.h (opaque). Define the
+ * actual signature locally so we can call it through a cast. */
+typedef VOID (NTAPI *NLOADER_APC_ROUTINE)(PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock, ULONG Reserved);
+
 #if defined(__linux)
 #include <linux/fs.h>
 #include <sys/ioctl.h>
@@ -440,7 +449,15 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
 
     IoStatusBlock->Information = count;
 #endif
-    return (IoStatusBlock->u.Status = STATUS_SUCCESS);
+    IoStatusBlock->u.Status = STATUS_SUCCESS;
+    if (Event)
+        NtSetEvent(Event, NULL);
+    /* No real APC delivery: invoke synchronously since the I/O has already
+     * completed. autochk relies on the routine to mark the completion record
+     * and wake whatever is polling on it. */
+    if (ApcRoutine)
+        ((NLOADER_APC_ROUTINE)ApcRoutine)(ApcContext, IoStatusBlock, 0);
+    return STATUS_SUCCESS;
 }
 FORWARD_FUNCTION(NtReadFile, ZwReadFile);
 
@@ -486,7 +503,12 @@ NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcR
 
     IoStatusBlock->Information = count;
 #endif
-    return (IoStatusBlock->u.Status = STATUS_SUCCESS);
+    IoStatusBlock->u.Status = STATUS_SUCCESS;
+    if (Event)
+        NtSetEvent(Event, NULL);
+    if (ApcRoutine)
+        ((NLOADER_APC_ROUTINE)ApcRoutine)(ApcContext, IoStatusBlock, 0);
+    return STATUS_SUCCESS;
 }
 FORWARD_FUNCTION(NtWriteFile, ZwWriteFile);
 

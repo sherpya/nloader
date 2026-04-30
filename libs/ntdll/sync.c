@@ -228,7 +228,7 @@ NTSTATUS NTAPI NtCreateEvent(PHANDLE EventHandle, ACCESS_MASK DesiredAccess,
     pthread_mutex_init(&(*EventHandle)->event.state_mutex, NULL);
     pthread_cond_init(&(*EventHandle)->event.cond, NULL);
 
-    Log("ntdll.NtCreateEvent(\"%s\")\n", EventA);
+    Log("ntdll.NtCreateEvent(\"%s\", type=%d, init=%d)\n", EventA, EventType, InitialState);
 
     return STATUS_SUCCESS;
 }
