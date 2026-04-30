@@ -42,15 +42,17 @@ cextern abort
 
 SECTION .text
 
-; Per-import stub layout (17 bytes), built at runtime by the loader:
+; Per-import stub layout (18 bytes), built at runtime by the loader:
 ;
 ;   68 ii ii ii ii                  push  imm32                    ; idx
-;   48 B8 dd dd dd dd dd dd dd dd   mov   rax, imm64 stub_dispatch
-;   FF E0                           jmp   rax
+;   49 BB dd dd dd dd dd dd dd dd   mov   r11, imm64 stub_dispatch
+;   41 FF E3                        jmp   r11
 ;
 ; rel32 jmp would be 10 bytes but cannot reach when stubs are mmap'd far from
-; the dispatcher (PIE base is ~5GB away from typical mmap region). RAX is
-; volatile in the Win64 ABI and unused at call entry, so we clobber it freely.
+; the dispatcher (PIE base is ~5GB away from typical mmap region). r11 is
+; Win64-volatile and never used as an input register, so we clobber it freely.
+; Note: rax is volatile too, but cannot be used here because __chkstk takes
+; its byte-count argument in rax — the stub must hand off rax untouched.
 ;
 ; The stub does NOT execute Win64-ABI prologue/epilogue: it forwards directly
 ; to stub_dispatch with rcx,rdx,r8,r9 untouched and the index pushed below the
@@ -86,7 +88,7 @@ cfunction stub_dispatch
 
     mov     ebx, dword [rbp + 0x20]     ; ebx = idx (zero-extends)
 
-    ; Local frame: 0x20 shadow + 0x20 arg saves + 0x10 stash/pad = 0x50
+    ; Local frame: 0x20 shadow + 0x20 arg saves + 0x10 stash = 0x50
     ; rsp%16 stays 0.
     sub     rsp, 0x50
     mov     [rsp + 0x20], rcx
@@ -94,7 +96,9 @@ cfunction stub_dispatch
     mov     [rsp + 0x30], r8
     mov     [rsp + 0x38], r9
     ; [rsp + 0x40] reserved as r10 stash across LogModule call
-    ; [rsp + 0x48] padding
+    ; [rsp + 0x48] caller's rax (input to __chkstk in the Win64 ABI; the
+    ; dispatcher otherwise treats rax as scratch and would clobber it)
+    mov     [rsp + 0x48], rax
 
     mov     rax, [rel import_addrs]
     mov     r10, [rax + rbx*8]          ; resolved fn (or NULL)
@@ -129,10 +133,12 @@ cfunction stub_dispatch
     mov     rdx, [rsp + 0x28]
     mov     r8,  [rsp + 0x30]
     mov     r9,  [rsp + 0x38]
+    mov     rax, [rsp + 0x48]           ; restore caller's rax (for __chkstk)
 
     ; Tear down. Goal: stack should look like a normal call to resolved_fn,
-    ; i.e. [rsp] = original retaddr.
-    mov     rax, [rbp + 0x28]           ; original retaddr
+    ; i.e. [rsp] = original retaddr. Use r11 (Win64-volatile, scratch) for the
+    ; retaddr so we don't clobber the rax we just restored.
+    mov     r11, [rbp + 0x28]           ; original retaddr
     mov     rsp, rbp                    ; pop local frame
     pop     rdi
     pop     rsi
@@ -140,7 +146,7 @@ cfunction stub_dispatch
     pop     rbp
     ; Now [rsp + 0x00] = idx, [rsp + 0x08] = retaddr (still both on stack)
     add     rsp, 0x10                   ; remove idx + retaddr
-    push    rax                         ; restore retaddr at [rsp]
+    push    r11                         ; restore retaddr at [rsp]
     jmp     r10                         ; tail-call
 
 .stubbed:
@@ -153,9 +159,9 @@ cfunction stub_dispatch
     call    abort wrt ..plt
     ; abort is noreturn; control never falls through
 
-; sizeof_stub: bytes per emitted stub (push imm32 + mov rax, imm64 + jmp rax)
+; sizeof_stub: bytes per emitted stub (push imm32 + mov r11, imm64 + jmp r11)
 cfunction sizeof_stub
-    mov     eax, 17
+    mov     eax, 18
     ret
 
 ; to_ep: switch to TEB-defined stack and call the entrypoint with peb in rcx.

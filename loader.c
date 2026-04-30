@@ -59,15 +59,19 @@ extern unsigned int sizeof_stub(void);
 #if defined(__x86_64__)
 extern void stub_dispatch(void);
 static inline void emit_stub(uint8_t *p, unsigned idx) {
-    /* push imm32 (idx) ; mov rax, imm64 stub_dispatch ; jmp rax
-     * (17 bytes — position-independent across full 64-bit address space) */
-    p[0] = 0x68;
+    /* push imm32 (idx) ; mov r11, imm64 stub_dispatch ; jmp r11
+     * (18 bytes — position-independent across full 64-bit address space).
+     * r11 is Win64-volatile and never used as an input register, so it can be
+     * clobbered freely. rax MUST be preserved here because __chkstk takes its
+     * byte-count argument in rax. */
+    p[0]  = 0x68;
     *(uint32_t *)(p + 1) = (uint32_t)idx;
-    p[5] = 0x48;
-    p[6] = 0xB8;
+    p[5]  = 0x49;
+    p[6]  = 0xBB;
     *(uint64_t *)(p + 7) = (uint64_t)(uintptr_t)stub_dispatch;
-    p[15] = 0xFF;
-    p[16] = 0xE0;
+    p[15] = 0x41;
+    p[16] = 0xFF;
+    p[17] = 0xE3;
 }
 #else
 extern void stub(void);
