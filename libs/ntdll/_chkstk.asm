@@ -73,6 +73,11 @@ SECTION .text
 ; Our minimal implementation: validate against TEB.NtTib.StackLimit (gs:0x10)
 ; and abort on overflow. The probe loop is omitted — Linux grows the mapping
 ; automatically as long as the access is within our allocated stack range.
+;
+; Export both `__chkstk` (the actual MSVC x64 import name; two underscores)
+; and `_chkstk` (one underscore, kept for any caller using the i386-style
+; name). Both labels point at the same code.
+cfunction __chkstk
 cfunction _chkstk
     push    r10
     push    r11
