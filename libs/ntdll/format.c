@@ -28,9 +28,6 @@
 #include "ntdll.h"
 #include <stdarg.h>
 
-FORWARD_FUNCTION(sprintf, rpl_sprintf);
-FORWARD_FUNCTION(vsnprintf, rpl__vsnprintf);
-
 typedef struct _format_target_t
 {
     int type;
@@ -250,7 +247,6 @@ int CDECL rpl_swprintf_s(WCHAR *buffer, size_t sizeOfBuffer, const WCHAR *format
     ms_va_end(argptr);
     return retval;
 }
-FORWARD_FUNCTION(rpl_swprintf_s, rpl__snwprintf);
 
 ULONG CDECL DbgPrint(char *format, ...)
 {

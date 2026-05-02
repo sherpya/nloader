@@ -127,9 +127,6 @@ typedef struct _HANDLE
 #define HANDLE_DEFINED
 #include "../../nt_structs.h"
 #include "winternl.h"
-#ifdef _WIN32
-#include "ftable.h"
-#endif
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

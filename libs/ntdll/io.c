@@ -304,7 +304,6 @@ NTSTATUS NTAPI NtCreateFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
     IoStatusBlock->Information = FILE_CREATED;
     return (IoStatusBlock->u.Status = STATUS_SUCCESS);
 }
-FORWARD_FUNCTION(NtCreateFile, ZwCreateFile);
 
 NTSTATUS NTAPI NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes,
     PIO_STATUS_BLOCK IoStatusBlock, ULONG ShareAccess, ULONG OpenOptions)
@@ -356,7 +355,6 @@ NTSTATUS NTAPI NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT
     return NtCreateFile(FileHandle, DesiredAccess, ObjectAttributes, IoStatusBlock, NULL, 0, ShareAccess, OPEN_EXISTING, OpenOptions, NULL, 0);
 #endif
 }
-FORWARD_FUNCTION(NtOpenFile, ZwOpenFile);
 
 static int GetChar(void)
 {
@@ -459,7 +457,6 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
         ((NLOADER_APC_ROUTINE)ApcRoutine)(ApcContext, IoStatusBlock, 0);
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtReadFile, ZwReadFile);
 
 NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext, PIO_STATUS_BLOCK IoStatusBlock,
     PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset, PULONG Key)
@@ -510,7 +507,6 @@ NTSTATUS NTAPI NtWriteFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcR
         ((NLOADER_APC_ROUTINE)ApcRoutine)(ApcContext, IoStatusBlock, 0);
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtWriteFile, ZwWriteFile);
 
 NTSTATUS NTAPI NtClose(HANDLE Handle)
 {
@@ -551,7 +547,6 @@ NTSTATUS NTAPI NtClose(HANDLE Handle)
     }
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtClose, ZwClose);
 
 NTSTATUS NTAPI NtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 {
@@ -563,7 +558,6 @@ NTSTATUS NTAPI NtDeleteFile(POBJECT_ATTRIBUTES ObjectAttributes)
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtDeleteFile, ZwDeleteFile);
 
 NTSTATUS NTAPI NtFlushBuffersFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock)
 {
@@ -582,7 +576,6 @@ NTSTATUS NTAPI NtFlushBuffersFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBl
     else
         return (IoStatusBlock->u.Status = STATUS_UNSUCCESSFUL);
 }
-FORWARD_FUNCTION(NtFlushBuffersFile, ZwFlushBuffersFile);
 
 // Windows 8
 NTSTATUS NTAPI NtCancelIoFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock)
@@ -598,7 +591,6 @@ NTSTATUS NTAPI NtCancelIoFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock)
     IoStatusBlock->u.Status = STATUS_CANCELLED;
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtCancelIoFile, ZwNtCancelIoFile);
 
 NTSTATUS NTAPI NtOpenSymbolicLinkObject(PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes)
 {
@@ -704,4 +696,3 @@ NTSTATUS NTAPI NtQueryDirectoryFile(HANDLE FileHandle, HANDLE Event,
 
     return (IoStatusBlock->u.Status = STATUS_UNSUCCESSFUL);
 }
-FORWARD_FUNCTION(NtQueryDirectoryFile, ZwQueryDirectoryFile);

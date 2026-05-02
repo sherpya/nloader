@@ -74,7 +74,6 @@ NTSTATUS NTAPI NtAllocateVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress,
 
     return STATUS_INSUFFICIENT_RESOURCES;
 }
-FORWARD_FUNCTION(NtAllocateVirtualMemory, ZwAllocateVirtualMemory);
 
 NTSTATUS NTAPI NtFreeVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress, PSIZE_T RegionSize, ULONG FreeType)
 {
@@ -85,4 +84,3 @@ NTSTATUS NTAPI NtFreeVirtualMemory(HANDLE ProcessHandle, PVOID *BaseAddress, PSI
     else
         return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtFreeVirtualMemory, ZwFreeVirtualMemory);

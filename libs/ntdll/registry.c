@@ -94,7 +94,6 @@ NTSTATUS NTAPI NtOpenKey(PHANDLE retkey, ACCESS_MASK access, POBJECT_ATTRIBUTES 
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtOpenKey, ZwOpenKey);
 
 NTSTATUS NTAPI NtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName,
     KEY_VALUE_INFORMATION_CLASS KeyValueInformationClass, PVOID KeyValueInformation, ULONG Length, PULONG ResultLength)
@@ -168,7 +167,6 @@ NTSTATUS NTAPI NtQueryValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName,
             return STATUS_NOT_IMPLEMENTED;
     }
 }
-FORWARD_FUNCTION(NtQueryValueKey, ZwQueryValueKey);
 
 NTSTATUS NTAPI NtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULONG TitleIndex, ULONG Type, PVOID Data, ULONG DataSize)
 {
@@ -192,7 +190,6 @@ NTSTATUS NTAPI NtSetValueKey(HANDLE KeyHandle, PUNICODE_STRING ValueName, ULONG 
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtSetValueKey, ZwSetValueKey);
 
 NTSTATUS NTAPI RtlQueryRegistryValues(ULONG RelativeTo, PCWSTR Path, PRTL_QUERY_REGISTRY_TABLE QueryTable, PVOID Context, PVOID Environment)
 {
@@ -247,7 +244,6 @@ NTSTATUS NTAPI RtlQueryRegistryValues(ULONG RelativeTo, PCWSTR Path, PRTL_QUERY_
 /*  Windows8 drivers use this new function as much as possible.
     If driver calls new function and the registy key is untrusted,
     it would cause BugCheck = KERNEL_SECURITY_CHECK_FAILURE */
-FORWARD_FUNCTION(RtlQueryRegistryValues, RtlQueryRegistryValuesEx);
 
 NTSTATUS NTAPI RtlWriteRegistryValue(IN ULONG RelativeTo, IN PCWSTR Path, IN PCWSTR ValueName,
     IN ULONG ValueType, IN PVOID ValueData, IN ULONG ValueLength)

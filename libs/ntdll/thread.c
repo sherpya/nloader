@@ -64,7 +64,6 @@ NTSTATUS NTAPI NtTerminateThread(HANDLE ThreadHandle, NTSTATUS ExitStatus)
     pthread_exit(ThreadHandle ? &ThreadHandle->thread.ExitStatus : NULL);
     return STATUS_SUCCESS;  /* unreachable */
 }
-FORWARD_FUNCTION(NtTerminateThread, ZwTerminateThread);
 
 NTSTATUS NTAPI RtlCreateUserThread(HANDLE ProcessHandle, /*PSECURITY_DESCRIPTOR*/ PVOID SecurityDescriptor,
     BOOLEAN CreateSuspended, ULONG StackZeroBits, PULONG StackReserved, PULONG StackCommit,

@@ -243,7 +243,6 @@ NTSTATUS NTAPI RtlMultiByteToUnicodeN(PWCH UnicodeString, ULONG MaxBytesInUnicod
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(RtlMultiByteToUnicodeN, RtlOemToUnicodeN);
 
 NTSTATUS NTAPI RtlUnicodeToOemN(PCHAR OemString, ULONG MaxBytesInOemString,
     PULONG BytesInOemString, PCWCH UnicodeString, ULONG BytesInUnicodeString)
@@ -268,7 +267,6 @@ NTSTATUS NTAPI RtlUnicodeToOemN(PCHAR OemString, ULONG MaxBytesInOemString,
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(RtlUnicodeToOemN, RtlUnicodeToMultiByteN);
 
 VOID NTAPI RtlInitUnicodeString(PUNICODE_STRING DestinationString, LPCWSTR SourceString)
 {

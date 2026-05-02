@@ -55,6 +55,30 @@ uint8_t *stubs = NULL;
 uintptr_t *thunks = NULL;
 unsigned int nfuncs = 0;
 
+/* Bounds of the .nl_exports section, populated by every fake-DLL TU via
+ * NL_EXPORT(). Linker auto-defines these symbols on ELF (Linux/FreeBSD).
+ * Each fake-DLL static archive must be linked with `--whole-archive` so its
+ * NL_EXPORT records aren't GC'd as "unreferenced".
+ *
+ * On Windows (PE) the section discovery uses a different mechanism — see
+ * the README; the Windows port is not wired up yet. */
+#ifndef _WIN32
+extern const struct nl_export __start_nl_exports[];
+extern const struct nl_export __stop_nl_exports[];
+#endif
+
+static void *nl_resolve(const char *dll, const char *name)
+{
+#ifndef _WIN32
+    for (const struct nl_export *e = __start_nl_exports; e < __stop_nl_exports; e++)
+        if (!strcmp(e->dll, dll) && !strcmp(e->name, name))
+            return e->func;
+#else
+    (void)dll; (void)name;
+#endif
+    return NULL;
+}
+
 extern unsigned int sizeof_stub(void);
 #if defined(__x86_64__)
 extern void stub_dispatch(void);
@@ -128,7 +152,7 @@ static void _LogModule(const char *module, const char *format, ...)
 
 static void _NoLogModule(const char *module, const char *format, ...) {}
 
-void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone) {
+void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams) {
     unsigned int i;
 #ifndef _WIN32
     /* Singletons: their addresses are handed to the guest via teb->Peb and
@@ -252,7 +276,8 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	pe_thunk_t *names, *addrs;
 	uint32_t dllnamelen;
 	char *dllname;
-	void *handle;
+	char dllbase[64];
+	char *dot;
 
 	pe_opt.DataDirectory[1].Size -= sizeof(struct IMAGE_IMPORT);
 	pe_opt.DataDirectory[1].VirtualAddress += sizeof(struct IMAGE_IMPORT);
@@ -272,12 +297,12 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 	dllname = (char *) (image + import->DllName);
 	dllnamelen = strlen(dllname);
 
-	handle = load_library(standalone ? NULL : dllname);
-
-	if(!handle) {
-	    printf("Library %s.so unavailable (%s) - imports will resolve to stubs\n", dllname, dlerror());
-	} else if (!standalone)
-	    printf("Loading %s.so and resolving imports\n", dllname);
+	/* Strip the .dll suffix to match the `dll` field in nl_export records
+	 * (the table stores bare names: "ntdll", "bcd"). */
+	strncpy(dllbase, dllname, sizeof(dllbase) - 1);
+	dllbase[sizeof(dllbase) - 1] = 0;
+	if ((dot = strrchr(dllbase, '.')))
+	    *dot = 0;
 
 	/******************************************************************************************************* IAT - functions */
 	while(1) {
@@ -323,40 +348,9 @@ void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAM
 		perror("realloc import_addrs");
 		return NULL;
 	    }
-	    if(handle) {
-		char *mangled_name = malloc(strlen(impname) + strlen("rpl_") + 1);
-		if(!mangled_name) {
-		    perror("malloc mangled name");
-		    return NULL;
-		}
-		sprintf(mangled_name, "rpl_%s", impname);
-#ifndef _WIN32
-		dlerror();
-#endif
-		api_addr = dlsym(handle, mangled_name);
-		free(mangled_name);
-		if(dlerror()) {
-#ifndef _WIN32
-		    dlerror();
-#endif
-		    api_addr = dlsym(handle, impname);
-		}
-		if(dlerror())
-		    api_addr = NULL;
-#ifndef _WIN32
-		else {
-		    Dl_info di;
-		    if(!dladdr(api_addr, &di))
-			api_addr = NULL;
-		    // FIXME: check against full path of argv[0]
-		    else if(!standalone && (!di.dli_fname || !strstr(di.dli_fname, dllname)))
-			api_addr = NULL;
-		}
-#endif
-	    } else
-		api_addr = NULL;
+	    api_addr = nl_resolve(dllbase, impname);
 	    import_addrs[nfuncs-1] = api_addr;
- 	    if (!standalone) printf("- %s%s\n", fname, api_addr ? "" : " (stub)");
+	    printf("- %s%s\n", fname, api_addr ? "" : " (stub)");
 	    if(free_impname)
 		free(impname);
 

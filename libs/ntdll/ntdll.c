@@ -161,7 +161,6 @@ NTSTATUS NTAPI NtSetInformationProcess(HANDLE ProcessHandle, PROCESS_INFORMATION
 {
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtSetInformationProcess, ZwSetInformationProcess);
 
 NTSTATUS NTAPI NtTerminateProcess(HANDLE ProcessHandle, NTSTATUS ExitStatus)
 {
@@ -181,7 +180,6 @@ NTSTATUS NTAPI NtDisplayString(PUNICODE_STRING String)
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtDisplayString, NtDrawText); // Windows 8
 
 VOID NTAPI DbgBreakPoint(void)
 {
@@ -194,7 +192,6 @@ NTSTATUS NTAPI NtShutdownSystem(SHUTDOWN_ACTION Action)
     fprintf(stderr, "ntdll.NtShutdownSystem(%d)\n", Action);
     exit(0);
 }
-FORWARD_FUNCTION(NtShutdownSystem, ZwShutdownSystem);
 
 NTSTATUS NTAPI LdrSetMUICacheType(ULONG Type)
 {
@@ -216,7 +213,6 @@ NTSTATUS NTAPI NtOpenSection(PHANDLE SectionHandle, ACCESS_MASK DesiredAccess, P
 
     return STATUS_ACCESS_DENIED;
 }
-FORWARD_FUNCTION(NtOpenSection, ZwOpenSection);
 
 NTSTATUS NTAPI LdrGetDllHandle(PWORD pwPath, PVOID Unused, PUNICODE_STRING ModuleFileName, PHANDLE pHModule)
 {
@@ -239,7 +235,6 @@ NTSTATUS NTAPI NtLoadDriver(IN PUNICODE_STRING DriverServiceName)
 
     return STATUS_SUCCESS;
 }
-FORWARD_FUNCTION(NtLoadDriver, ZwLoadDriver);
 
 NTSTATUS NTAPI NtOpenProcessToken(HANDLE ProcessHandle, ACCESS_MASK DesiredAccess, PHANDLE TokenHandle)
 {

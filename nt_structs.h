@@ -117,31 +117,6 @@ typedef int (WINAPI *FARPROC)(void);
 
 #define VOLUME_PREFIX   L"Volume{"
 
-#define Q(x)                #x
-
-#if defined(_WIN32) || defined(__APPLE__)
-#define MANGLE(func)        Q(_ ## func)
-#else
-#define MANGLE(func)        #func
-#endif
-
-#ifdef _WIN32 // via .def
-#define FORWARD_FUNCTION(have, need)
-#else
-/* Plain alias: `need` is an entry point that tail-jumps to `have`. Both
- * sides must share the calling convention. On x86_64 every internal
- * function is ms_abi (NTAPI/WINAPI/CDECL all expand to ms_abi), so a bare
- * jmp preserves rcx/rdx/r8/r9 untouched. Cross-ABI bridges to libc
- * (sysv) need explicit C wrappers — see libs/ntdll/crt.c — so GCC saves
- * Win64 non-volatiles (rdi, rsi, xmm6-15) around the sysv call. */
-#define FORWARD_FUNCTION(have, need)            \
-    asm(                                        \
-    ".text                              \n\t"   \
-    ".globl "Q(need)"                   \n\t"   \
-    Q(need)":                           \n\t"   \
-    "jmp "MANGLE(have)"")
-#endif
-
 #define IN
 #define OUT
 #define OPTIONAL
@@ -152,6 +127,49 @@ typedef int (WINAPI *FARPROC)(void);
 #define _In_
 #define _Inout_
 #endif
+
+/* nloader fake-DLL export table.
+ *
+ * Each fake DLL drops `(dll, name, &func)` records into a dedicated linker
+ * section. The loader walks `[__start_nl_exports, __stop_nl_exports)` instead
+ * of dlopen'ing a .so and dlsym'ing each import. No support libraries at
+ * runtime; the whole thing is one self-contained ELF (or PE on Windows). */
+struct nl_export {
+    const char *dll;
+    const char *name;
+    void       *func;
+};
+
+#ifdef _WIN32
+/* Windows: collect into a custom PE section. The MSVC linker exposes
+ * `__start_<name>` / `__stop_<name>` only for ELF; for PE the loader walks
+ * the section by other means. The Windows port is not wired up yet — see
+ * the README. The annotations below keep the C compilation valid. */
+#define NL_EXPORT_SECTION ".nlexp$b"
+#define NL_EXPORT_SECTION_ATTR __declspec(allocate(NL_EXPORT_SECTION))
+#define NL_EXPORT_USED
+#else
+#define NL_EXPORT_SECTION_ATTR __attribute__((section("nl_exports")))
+#define NL_EXPORT_USED __attribute__((used))
+#endif
+
+/* The macro declares `fn_` as `extern char[]` to sidestep the per-TU calling
+ * convention attributes on the real prototypes. The linker resolves the
+ * symbol to the function address regardless of the C type used here. The
+ * exports TU must NOT also see the real prototypes, or the redeclaration
+ * conflicts; keep its only project include to nt_structs.h. The explicit
+ * aligned(8) is mandatory: GCC otherwise rounds each `static const`
+ * aggregate up to 32 bytes (cache-line friendliness for read-only data),
+ * which mismatches sizeof(struct nl_export)==24 and would make the loader's
+ * `e++` walk skip into 8 bytes of zero-padding. */
+#define NL_EXPORT(dll_, fn_)            NL_EXPORT_AS(dll_, fn_, fn_)
+#define NL_EXPORT_AS(dll_, exp_, fn_)                                       \
+    extern char fn_[];                                                      \
+    static const struct nl_export NL_EXPORT_USED                            \
+        __attribute__((aligned(8)))                                         \
+        NL_EXPORT_SECTION_ATTR _nlexp_##dll_##_##exp_ = {                   \
+            #dll_, #exp_, (void *)fn_                                       \
+        };
 
 
 #define HANDLE_HEAP             (HANDLE)(0x1337)
@@ -838,7 +856,7 @@ static inline TEB *NtCurrentTeb(void)
 TEB *NtCurrentTeb(VOID);
 #define NtCurrentPeb() NtCurrentTeb()->Peb
 extern int to_ep(void *ep);
-extern void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams, int standalone);
+extern void *setup_nloader(uint8_t *mod_start, size_t mod_size, PRTL_USER_PROCESS_PARAMETERS *pparams);
 
 #include "nt_compat.h"
 

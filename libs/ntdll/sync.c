@@ -132,7 +132,6 @@ NTSTATUS NTAPI NtWaitForSingleObject(HANDLE Handle, BOOLEAN Alertable, PLARGE_IN
 
     return STATUS_NOT_IMPLEMENTED;
 }
-FORWARD_FUNCTION(NtWaitForSingleObject, ZwWaitForSingleObject);
 
 NTSTATUS NTAPI NtWaitForMultipleObjects(ULONG ObjectCount, PHANDLE ObjectsArray,
     OBJECT_WAIT_TYPE WaitType, BOOLEAN Alertable, PLARGE_INTEGER Timeout)
@@ -208,7 +207,6 @@ NTSTATUS NTAPI NtWaitForMultipleObjects(ULONG ObjectCount, PHANDLE ObjectsArray,
         }
     }
 }
-FORWARD_FUNCTION(NtWaitForMultipleObjects, ZwWaitForMultipleObjects);
 
 NTSTATUS NTAPI NtCreateEvent(PHANDLE EventHandle, ACCESS_MASK DesiredAccess,
     POBJECT_ATTRIBUTES ObjectAttributes, EVENT_TYPE EventType, BOOLEAN InitialState)
@@ -245,7 +243,6 @@ NTSTATUS NTAPI NtOpenEvent(PHANDLE EventHandle, ACCESS_MASK DesiredAccess, POBJE
     Log("ntdll.NtOpenEvent(\"%s\")\n", ObjectAttributesA);
     return STATUS_NOT_IMPLEMENTED;
 }
-FORWARD_FUNCTION(NtOpenEvent, ZwOpenEvent);
 
 NTSTATUS NTAPI NtSetEvent(HANDLE EventHandle, PLONG PreviousState)
 {
@@ -306,4 +303,3 @@ NTSTATUS NTAPI NtClearEvent(HANDLE EventHandle)
     Log("ntdll.NtClearEvent(\"%s\")\n", strhandle(EventHandle));
     return NtResetEvent(EventHandle, NULL);
 }
-FORWARD_FUNCTION(NtClearEvent, ZwClearEvent);

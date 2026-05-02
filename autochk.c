@@ -94,7 +94,7 @@ int main (int argc, char **argv) {
 
     const char *executable = "autochk.exe";
 
-    ep = setup_nloader(autochk_data, autochk_size, &params, 1);
+    ep = setup_nloader(autochk_data, autochk_size, &params);
 
     if (!ep)
     {

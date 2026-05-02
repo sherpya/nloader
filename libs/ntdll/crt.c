@@ -33,12 +33,11 @@
 
 MODULE(crt)
 
-#if defined(__x86_64__) && !defined(_WIN32)
-/* On x86_64 Linux, libc is sysv and the guest is Win64. A bare tail-jmp
- * to libc clobbers Win64 non-volatiles (rdi/rsi/xmm6-15 are sysv-volatile),
- * which the guest expects to survive across the call. Wrap each forward
- * with an ms_abi C function — GCC saves/restores the relevant non-volatiles
- * around the sysv call automatically. */
+/* Thin wrappers around libc. On x86_64 Linux these bridge ms_abi → sysv
+ * (GCC emits the register shuffle when crossing the ABI boundary); on i386
+ * everything is one ABI so the wrappers are effectively a tail call.
+ * `rpl_qsort` cannot use libc directly because the guest's compar callback
+ * is ms_abi while libc invokes its compar sysv — see below. */
 int CDECL rpl_memcmp(const void *s1, const void *s2, size_t n)
     { return memcmp(s1, s2, n); }
 void * CDECL rpl_memcpy(void *dest, const void *src, size_t n)
@@ -61,11 +60,10 @@ char * CDECL rpl_strpbrk(const char *s, const char *accept)
     { return strpbrk(s, accept); }
 size_t CDECL rpl_strspn(const char *s, const char *accept)
     { return strspn(s, accept); }
-/* qsort takes a callback — the guest's compar is ms_abi but libc qsort
- * invokes it sysv. Bridge through a thunk that re-shuffles args. The
- * thunk is per-call (closure-style) so we stash the guest callback in a
- * thread-local. autochk doesn't appear to call qsort in the boot path,
- * so this stays unimplemented for now. */
+#if defined(__x86_64__) && !defined(_WIN32)
+/* x86_64 Linux: guest's compar is ms_abi, libc qsort calls it sysv. The
+ * bridge would need a per-call thunk that re-shuffles args; autochk
+ * doesn't appear to call qsort in the boot path, so leave it tripping. */
 void CDECL rpl_qsort(void *base, size_t nmemb, size_t size,
     int (CDECL *compar)(const void *, const void *))
 {
@@ -73,19 +71,37 @@ void CDECL rpl_qsort(void *base, size_t nmemb, size_t size,
     fprintf(stderr, "rpl_qsort: cross-ABI callback bridge unimplemented\n");
     abort();
 }
+/* Same shape problem for variadic libc bridges: ms_va_list and SysV va_list
+ * have different layouts on x86_64, so we cannot just forward the ap to libc
+ * (v)snprintf. Trip if a guest reaches these — autochk doesn't in the boot
+ * path. (Used to be a bare jmp via FORWARD_FUNCTION; same latent bug.) */
+int CDECL rpl_sprintf(char *buf, const char *fmt, ...)
+{
+    (void)buf; (void)fmt;
+    fprintf(stderr, "rpl_sprintf: variadic ms_abi->sysv bridge unimplemented\n");
+    abort();
+}
+int CDECL rpl__vsnprintf(char *buf, size_t n, const char *fmt, ms_va_list ap)
+{
+    (void)buf; (void)n; (void)fmt; (void)ap;
+    fprintf(stderr, "rpl__vsnprintf: cross-ABI va_list bridge unimplemented\n");
+    abort();
+}
 #else
-FORWARD_FUNCTION(memcmp, rpl_memcmp);
-FORWARD_FUNCTION(memcpy, rpl_memcpy);
-FORWARD_FUNCTION(memset, rpl_memset);
-FORWARD_FUNCTION(memmove, rpl_memmove);
-FORWARD_FUNCTION(atoll, rpl__atoi64);
-FORWARD_FUNCTION(atoi, rpl_atoi);
-FORWARD_FUNCTION(qsort, rpl_qsort);
-FORWARD_FUNCTION(strcasecmp, rpl__stricmp);
-FORWARD_FUNCTION(strncasecmp, rpl__strnicmp);
-FORWARD_FUNCTION(strncpy, rpl_strncpy);
-FORWARD_FUNCTION(strpbrk, rpl_strpbrk);
-FORWARD_FUNCTION(strspn, rpl_strspn);
+void CDECL rpl_qsort(void *base, size_t nmemb, size_t size,
+    int (CDECL *compar)(const void *, const void *))
+    { qsort(base, nmemb, size, (int (*)(const void *, const void *)) compar); }
+int CDECL rpl_sprintf(char *buf, const char *fmt, ...)
+{
+    int ret;
+    va_list ap;
+    va_start(ap, fmt);
+    ret = vsprintf(buf, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+int CDECL rpl__vsnprintf(char *buf, size_t n, const char *fmt, va_list ap)
+    { return vsnprintf(buf, n, fmt, ap); }
 #endif
 
 // long is always 32bit on win32

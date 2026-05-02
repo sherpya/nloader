@@ -1,0 +1,277 @@
+/*
+ * Copyright (c) 2026, Gianluigi Tiesi <sherpya@gmail.com>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Neither the name of the copyright holder nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ */
+
+/* nl_exports table for the ntdll fake-DLL. Keep this TU header-light: the
+ * NL_EXPORT macro re-declares each symbol as `extern char[]`, which would
+ * collide with a real prototype if one were in scope. */
+#include "../../nt_structs.h"
+
+/* --- bit ops (rtl_bitmap.c, crc.c) ----------------------------------- */
+NL_EXPORT(ntdll, _chkstk)
+/* MSVC x64 imports __chkstk (two underscores). Same routine; the asm in
+ * libs/ntdll/_chkstk.asm exports both labels. */
+NL_EXPORT(ntdll, __chkstk)
+NL_EXPORT(ntdll, RtlAreBitsClear)
+NL_EXPORT(ntdll, RtlAreBitsSet)
+NL_EXPORT(ntdll, RtlClearAllBits)
+NL_EXPORT(ntdll, RtlClearBits)
+NL_EXPORT(ntdll, RtlFindClearBits)
+NL_EXPORT(ntdll, RtlFindClearBitsAndSet)
+NL_EXPORT(ntdll, RtlFindClearRuns)
+NL_EXPORT(ntdll, RtlFindLeastSignificantBit)
+NL_EXPORT(ntdll, RtlFindLongestRunClear)
+NL_EXPORT(ntdll, RtlFindMostSignificantBit)
+NL_EXPORT(ntdll, RtlFindNextForwardRunClear)
+NL_EXPORT(ntdll, RtlFindSetBits)
+NL_EXPORT(ntdll, RtlFindSetBitsAndClear)
+NL_EXPORT(ntdll, RtlInitializeBitMap)
+NL_EXPORT(ntdll, RtlNumberOfClearBits)
+NL_EXPORT(ntdll, RtlNumberOfSetBits)
+NL_EXPORT(ntdll, RtlSetAllBits)
+NL_EXPORT(ntdll, RtlSetBits)
+NL_EXPORT(ntdll, RtlTestBit)
+NL_EXPORT(ntdll, RtlComputeCrc32)
+NL_EXPORT(ntdll, RtlCrc32)
+NL_EXPORT(ntdll, RtlCrc64)
+
+/* --- crt wrappers (crt.c) -------------------------------------------- */
+NL_EXPORT_AS(ntdll, _stricmp, rpl__stricmp)
+NL_EXPORT_AS(ntdll, _strnicmp, rpl__strnicmp)
+NL_EXPORT_AS(ntdll, _wcsicmp, rpl__wcsicmp)
+NL_EXPORT_AS(ntdll, _wcslwr, rpl__wcslwr)
+NL_EXPORT_AS(ntdll, _wcsnicmp, rpl__wcsnicmp)
+NL_EXPORT_AS(ntdll, _wcsupr, rpl__wcsupr)
+NL_EXPORT_AS(ntdll, _wtoi64, rpl__wtoi64)
+NL_EXPORT_AS(ntdll, _wtol, rpl__wtol)
+NL_EXPORT_AS(ntdll, atoi, rpl_atoi)
+NL_EXPORT_AS(ntdll, atol, rpl_atol)
+NL_EXPORT_AS(ntdll, _atoi64, rpl__atoi64)
+NL_EXPORT_AS(ntdll, isprint, rpl_isprint)
+NL_EXPORT_AS(ntdll, isspace, rpl_isspace)
+NL_EXPORT_AS(ntdll, memcmp, rpl_memcmp)
+NL_EXPORT_AS(ntdll, memcpy, rpl_memcpy)
+NL_EXPORT_AS(ntdll, memmove, rpl_memmove)
+NL_EXPORT_AS(ntdll, memset, rpl_memset)
+NL_EXPORT_AS(ntdll, strncpy, rpl_strncpy)
+NL_EXPORT_AS(ntdll, strpbrk, rpl_strpbrk)
+NL_EXPORT_AS(ntdll, strspn, rpl_strspn)
+NL_EXPORT_AS(ntdll, qsort, rpl_qsort)
+NL_EXPORT_AS(ntdll, wcscat, rpl_wcscat)
+NL_EXPORT_AS(ntdll, wcschr, rpl_wcschr)
+NL_EXPORT_AS(ntdll, wcscmp, rpl_wcscmp)
+NL_EXPORT_AS(ntdll, wcscpy, rpl_wcscpy)
+NL_EXPORT_AS(ntdll, wcslen, rpl_wcslen)
+NL_EXPORT_AS(ntdll, wcsncmp, rpl_wcsncmp)
+NL_EXPORT_AS(ntdll, wcsrchr, rpl_wcsrchr)
+NL_EXPORT_AS(ntdll, wcsspn, rpl_wcsspn)
+NL_EXPORT_AS(ntdll, wcsstr, rpl_wcsstr)
+NL_EXPORT_AS(ntdll, wcstoul, rpl_wcstoul)
+NL_EXPORT_AS(ntdll, _wcstoui64, rpl__wcstoui64)
+
+/* --- format/printf family (format.c) --------------------------------- */
+NL_EXPORT(ntdll, DbgPrint)
+NL_EXPORT(ntdll, DbgPrintEx)
+/* The asm aliases that used to be emitted by FORWARD_FUNCTION are gone.
+ * _snwprintf shares the swprintf_s implementation. _vsnprintf and sprintf
+ * forward to libc through trivial C wrappers in crt.c (which trip on x86_64
+ * because of the variadic ms_abi/sysv mismatch — same latent issue as before
+ * the conversion; not exercised by autochk's boot path). */
+NL_EXPORT_AS(ntdll, _snwprintf, rpl_swprintf_s)
+NL_EXPORT_AS(ntdll, _vsnprintf, rpl__vsnprintf)
+NL_EXPORT_AS(ntdll, _vsnwprintf, rpl__vsnwprintf)
+NL_EXPORT_AS(ntdll, sprintf, rpl_sprintf)
+NL_EXPORT_AS(ntdll, swprintf, rpl_swprintf)
+NL_EXPORT_AS(ntdll, swprintf_s, rpl_swprintf_s)
+
+/* --- heap (heap.c) --------------------------------------------------- */
+NL_EXPORT(ntdll, RtlAllocateHeap)
+NL_EXPORT(ntdll, RtlCreateHeap)
+NL_EXPORT(ntdll, RtlDestroyHeap)
+NL_EXPORT(ntdll, RtlFreeHeap)
+NL_EXPORT(ntdll, RtlReAllocateHeap)
+NL_EXPORT(ntdll, RtlSizeHeap)
+
+/* --- math/large integers (largeint.c, libgcc helpers) ---------------- */
+NL_EXPORT(ntdll, RtlExtendedIntegerMultiply)
+NL_EXPORT(ntdll, RtlLargeIntegerDivide)
+NL_EXPORT(ntdll, RtlConvertLongToLargeInteger)
+NL_EXPORT(ntdll, _alldiv)
+NL_EXPORT(ntdll, _allmul)
+NL_EXPORT(ntdll, _allrem)
+NL_EXPORT(ntdll, _allshl)
+NL_EXPORT(ntdll, _aulldiv)
+NL_EXPORT(ntdll, _aullrem)
+NL_EXPORT(ntdll, _aullshr)
+
+/* --- misc / lazy ldr (ntdll.c) --------------------------------------- */
+NL_EXPORT(ntdll, RtlDecompressBuffer)
+NL_EXPORT(ntdll, LdrGetDllHandle)
+NL_EXPORT(ntdll, LdrSetMUICacheType)
+NL_EXPORT(ntdll, NtAdjustPrivilegesToken)
+NL_EXPORT(ntdll, NtSetDefaultLocale)
+NL_EXPORT(ntdll, EtwEventUnregister)
+NL_EXPORT(ntdll, RtlSetLastWin32ErrorAndNtStatusFromNtStatus)
+
+/* --- mm.c ------------------------------------------------------------ */
+NL_EXPORT(ntdll, NtAllocateVirtualMemory)
+NL_EXPORT_AS(ntdll, ZwAllocateVirtualMemory, NtAllocateVirtualMemory)
+NL_EXPORT(ntdll, NtFreeVirtualMemory)
+NL_EXPORT_AS(ntdll, ZwFreeVirtualMemory, NtFreeVirtualMemory)
+
+/* --- io.c ------------------------------------------------------------ */
+NL_EXPORT(ntdll, NtCreateFile)
+NL_EXPORT_AS(ntdll, ZwCreateFile, NtCreateFile)
+NL_EXPORT(ntdll, NtOpenFile)
+NL_EXPORT_AS(ntdll, ZwOpenFile, NtOpenFile)
+NL_EXPORT(ntdll, NtReadFile)
+NL_EXPORT_AS(ntdll, ZwReadFile, NtReadFile)
+NL_EXPORT(ntdll, NtWriteFile)
+NL_EXPORT_AS(ntdll, ZwWriteFile, NtWriteFile)
+NL_EXPORT(ntdll, NtClose)
+NL_EXPORT_AS(ntdll, ZwClose, NtClose)
+NL_EXPORT(ntdll, NtDeleteFile)
+NL_EXPORT_AS(ntdll, ZwDeleteFile, NtDeleteFile)
+NL_EXPORT(ntdll, NtFlushBuffersFile)
+NL_EXPORT_AS(ntdll, ZwFlushBuffersFile, NtFlushBuffersFile)
+NL_EXPORT(ntdll, NtCancelIoFile)
+/* historic typo preserved in the old .def: ZwNtCancelIoFile */
+NL_EXPORT_AS(ntdll, ZwNtCancelIoFile, NtCancelIoFile)
+NL_EXPORT(ntdll, NtDeviceIoControlFile)
+NL_EXPORT(ntdll, NtFsControlFile)
+NL_EXPORT(ntdll, NtQueryInformationFile)
+NL_EXPORT(ntdll, NtQueryVolumeInformationFile)
+NL_EXPORT(ntdll, NtSetInformationFile)
+NL_EXPORT(ntdll, NtQueryDirectoryFile)
+NL_EXPORT_AS(ntdll, ZwQueryDirectoryFile, NtQueryDirectoryFile)
+NL_EXPORT(ntdll, NtOpenDirectoryObject)
+NL_EXPORT(ntdll, NtQueryDirectoryObject)
+NL_EXPORT(ntdll, NtOpenSymbolicLinkObject)
+NL_EXPORT(ntdll, NtQuerySymbolicLinkObject)
+
+/* --- sync.c ---------------------------------------------------------- */
+NL_EXPORT(ntdll, NtCreateEvent)
+NL_EXPORT(ntdll, NtSetEvent)
+NL_EXPORT(ntdll, NtResetEvent)
+NL_EXPORT(ntdll, NtClearEvent)
+NL_EXPORT_AS(ntdll, ZwClearEvent, NtClearEvent)
+NL_EXPORT(ntdll, NtOpenEvent)
+NL_EXPORT_AS(ntdll, ZwOpenEvent, NtOpenEvent)
+NL_EXPORT(ntdll, NtWaitForSingleObject)
+NL_EXPORT_AS(ntdll, ZwWaitForSingleObject, NtWaitForSingleObject)
+NL_EXPORT(ntdll, NtWaitForMultipleObjects)
+NL_EXPORT_AS(ntdll, ZwWaitForMultipleObjects, NtWaitForMultipleObjects)
+NL_EXPORT(ntdll, NtDelayExecution)
+
+/* --- thread.c -------------------------------------------------------- */
+NL_EXPORT(ntdll, NtQueryInformationThread)
+NL_EXPORT(ntdll, NtSetThreadExecutionState)
+NL_EXPORT(ntdll, NtTerminateThread)
+NL_EXPORT_AS(ntdll, ZwTerminateThread, NtTerminateThread)
+NL_EXPORT(ntdll, NtTerminateProcess)
+NL_EXPORT(ntdll, RtlCreateUserThread)
+NL_EXPORT(ntdll, RtlDeleteCriticalSection)
+NL_EXPORT(ntdll, RtlEnterCriticalSection)
+NL_EXPORT(ntdll, RtlInitializeCriticalSection)
+NL_EXPORT(ntdll, RtlLeaveCriticalSection)
+
+/* --- registry.c ------------------------------------------------------ */
+NL_EXPORT(ntdll, NtOpenKey)
+NL_EXPORT_AS(ntdll, ZwOpenKey, NtOpenKey)
+NL_EXPORT(ntdll, NtQueryValueKey)
+NL_EXPORT_AS(ntdll, ZwQueryValueKey, NtQueryValueKey)
+NL_EXPORT(ntdll, NtSetValueKey)
+NL_EXPORT_AS(ntdll, ZwSetValueKey, NtSetValueKey)
+NL_EXPORT(ntdll, RtlQueryRegistryValues)
+NL_EXPORT_AS(ntdll, RtlQueryRegistryValuesEx, RtlQueryRegistryValues)
+NL_EXPORT(ntdll, RtlWriteRegistryValue)
+
+/* --- ntdll.c (process / system / display) ---------------------------- */
+NL_EXPORT(ntdll, NtSetInformationProcess)
+NL_EXPORT_AS(ntdll, ZwSetInformationProcess, NtSetInformationProcess)
+NL_EXPORT(ntdll, NtOpenProcessToken)
+NL_EXPORT(ntdll, NtOpenSection)
+NL_EXPORT_AS(ntdll, ZwOpenSection, NtOpenSection)
+NL_EXPORT(ntdll, NtLoadDriver)
+NL_EXPORT_AS(ntdll, ZwLoadDriver, NtLoadDriver)
+NL_EXPORT(ntdll, NtDisplayString)
+NL_EXPORT_AS(ntdll, NtDrawText, NtDisplayString)
+NL_EXPORT(ntdll, NtShutdownSystem)
+NL_EXPORT_AS(ntdll, ZwShutdownSystem, NtShutdownSystem)
+NL_EXPORT(ntdll, NtQueryPerformanceCounter)
+NL_EXPORT(ntdll, NtQuerySystemInformation)
+NL_EXPORT(ntdll, NtQuerySystemTime)
+NL_EXPORT(ntdll, NtSerializeBoot)
+
+/* --- rtl.c (strings, paths, misc) ------------------------------------ */
+NL_EXPORT(ntdll, RtlSystemTimeToLocalTime)
+NL_EXPORT(ntdll, RtlRandom)
+NL_EXPORT(ntdll, RtlRandomEx)
+NL_EXPORT(ntdll, RtlUniform)
+NL_EXPORT(ntdll, RtlAdjustPrivilege)
+NL_EXPORT(ntdll, RtlAnsiStringToUnicodeString)
+NL_EXPORT(ntdll, RtlAnsiCharToUnicodeChar)
+NL_EXPORT(ntdll, RtlDosPathNameToNtPathName_U)
+NL_EXPORT(ntdll, RtlDosPathNameToNtPathName_U_WithStatus)
+NL_EXPORT(ntdll, RtlGetSystemBootStatus)
+NL_EXPORT(ntdll, RtlSetSystemBootStatus)
+NL_EXPORT(ntdll, RtlEqualUnicodeString)
+NL_EXPORT(ntdll, RtlExpandEnvironmentStrings_U)
+NL_EXPORT(ntdll, RtlFillMemoryUlong)
+NL_EXPORT(ntdll, RtlGetCurrentDirectory_U)
+NL_EXPORT(ntdll, RtlFindMessage)
+NL_EXPORT(ntdll, RtlFormatMessage)
+NL_EXPORT(ntdll, RtlFreeAnsiString)
+NL_EXPORT(ntdll, RtlFreeUnicodeString)
+NL_EXPORT(ntdll, RtlCreateUnicodeStringFromAsciiz)
+NL_EXPORT(ntdll, RtlInitAnsiString)
+NL_EXPORT(ntdll, RtlInitAnsiStringEx)
+NL_EXPORT(ntdll, RtlInitUnicodeString)
+NL_EXPORT(ntdll, RtlMultiByteToUnicodeN)
+NL_EXPORT_AS(ntdll, RtlOemToUnicodeN, RtlMultiByteToUnicodeN)
+NL_EXPORT(ntdll, RtlNormalizeProcessParams)
+NL_EXPORT(ntdll, RtlPrefixUnicodeString)
+NL_EXPORT(ntdll, RtlSecondsSince1970ToTime)
+NL_EXPORT(ntdll, RtlUnicodeStringToAnsiString)
+NL_EXPORT(ntdll, RtlUnicodeToOemN)
+NL_EXPORT_AS(ntdll, RtlUnicodeToMultiByteN, RtlUnicodeToOemN)
+NL_EXPORT(ntdll, RtlUpcaseUnicodeString)
+
+/* --- security.c ------------------------------------------------------ */
+NL_EXPORT(ntdll, RtlAddAccessAllowedAce)
+NL_EXPORT(ntdll, RtlAddAce)
+NL_EXPORT(ntdll, RtlCopySid)
+NL_EXPORT(ntdll, RtlCreateAcl)
+NL_EXPORT(ntdll, RtlCreateSecurityDescriptor)
+NL_EXPORT(ntdll, RtlFirstFreeAce)
+NL_EXPORT(ntdll, RtlInitializeSid)
+NL_EXPORT(ntdll, RtlLengthRequiredSid)
+NL_EXPORT(ntdll, RtlLengthSecurityDescriptor)
+NL_EXPORT(ntdll, RtlLengthSid)
+NL_EXPORT(ntdll, RtlQueryInformationAcl)
+NL_EXPORT(ntdll, RtlSetDaclSecurityDescriptor)
+NL_EXPORT(ntdll, RtlSetGroupSecurityDescriptor)
+NL_EXPORT(ntdll, RtlSubAuthoritySid)
+NL_EXPORT(ntdll, RtlValidAcl)
+NL_EXPORT(ntdll, RtlValidRelativeSecurityDescriptor)
+NL_EXPORT(ntdll, RtlValidSecurityDescriptor)
+NL_EXPORT(ntdll, RtlValidSid)
+
+/* --- generic table / time / version ---------------------------------- */
+NL_EXPORT(ntdll, RtlDeleteElementGenericTable)
+NL_EXPORT(ntdll, RtlEnumerateGenericTableWithoutSplaying)
+NL_EXPORT(ntdll, RtlInitializeGenericTable)
+NL_EXPORT(ntdll, RtlInsertElementGenericTable)
+NL_EXPORT(ntdll, RtlLookupElementGenericTable)
+NL_EXPORT(ntdll, RtlTimeToTimeFields)
+NL_EXPORT(ntdll, RtlVerifyVersionInfo)
+NL_EXPORT(ntdll, VerSetConditionMask)

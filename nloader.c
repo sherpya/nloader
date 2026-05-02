@@ -79,7 +79,7 @@ int main (int argc, char **argv) {
     }
 
     close(fd);
-    ep = setup_nloader(exe, st.st_size, &params, 0);
+    ep = setup_nloader(exe, st.st_size, &params);
     free(exe);
 
     if (!ep) {

@@ -28,7 +28,7 @@
 #ifndef __NT_COMPAT_H
 #define __NT_COMPAT_H
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <io.h>
 #include <ctype.h>
 #include <sys/timeb.h>
@@ -50,29 +50,11 @@ typedef struct _SYSTEM_INFO
     BYTE padding[(sizeof(PVOID) * 2) + (sizeof(DWORD) * 4) + (sizeof(WORD) * 2)];
 } SYSTEM_INFO, *LPSYSTEM_INFO;
 
-DECLSPEC_IMPORT LPVOID WINAPI LoadLibraryA(LPCSTR);
-DECLSPEC_IMPORT HANDLE WINAPI GetModuleHandleA(LPCSTR);
-DECLSPEC_IMPORT FARPROC WINAPI GetProcAddress(LPVOID, LPCSTR);
-DECLSPEC_IMPORT DWORD WINAPI GetLastError(VOID);
-DECLSPEC_IMPORT VOID WINAPI SetLastError(DWORD);
+DECLSPEC_IMPORT VOID WINAPI GetSystemInfo(LPSYSTEM_INFO);
+DECLSPEC_IMPORT DWORD WINAPI GetTickCount(VOID);
 DECLSPEC_IMPORT PVOID WINAPI VirtualAlloc(PVOID, DWORD, DWORD, DWORD);
 DECLSPEC_IMPORT int WINAPI VirtualFree(PVOID, DWORD, DWORD);
 DECLSPEC_IMPORT int WINAPI VirtualProtect(PVOID, DWORD, DWORD, PDWORD);
-DECLSPEC_IMPORT VOID WINAPI GetSystemInfo(LPSYSTEM_INFO);
-DECLSPEC_IMPORT DWORD WINAPI GetTickCount(VOID);
-
-DECLSPEC_IMPORT HANDLE WINAPI CreateFileA(LPCSTR,DWORD,DWORD,LPVOID,DWORD,DWORD,HANDLE);
-DECLSPEC_IMPORT HANDLE WINAPI CreateFileW(LPWSTR,DWORD,DWORD,LPVOID,DWORD,DWORD,HANDLE);
-DECLSPEC_IMPORT BOOL WINAPI GetFileSizeEx(HANDLE,PLARGE_INTEGER);
-DECLSPEC_IMPORT DWORD WINAPI GetLastError(VOID);
-DECLSPEC_IMPORT BOOL WINAPI SetFilePointerEx(HANDLE,LARGE_INTEGER,PLARGE_INTEGER,DWORD);
-DECLSPEC_IMPORT BOOL WINAPI ReadFile(HANDLE,LPVOID,DWORD,PDWORD,LPVOID);
-DECLSPEC_IMPORT BOOL WINAPI WriteFile(HANDLE,LPCVOID,DWORD,PDWORD,LPVOID);
-DECLSPEC_IMPORT BOOL WINAPI CloseHandle(HANDLE);
-DECLSPEC_IMPORT BOOL WINAPI FlushFileBuffers(HANDLE);
-
-#define IsValidHandle(handle)   (handle != (HANDLE) -1)
-#define FlushFile(handle)       FlushFileBuffers(handle)
 
 struct timeval
 {
@@ -127,27 +109,6 @@ static inline char *strcasestr(const char *haystack, const char *needle)
     return ((char *) haystack);
 }
 
-
-static inline void *load_library(const char *dllname)
-{
-    char libpath[260];
-
-    if (!dllname)
-        return GetModuleHandleA(NULL);
-
-#ifdef _MSC_VER
-    _snprintf(libpath, sizeof(libpath) - 1, ".\\%s", dllname);
-    return LoadLibraryA(libpath);
-#else
-    snprintf(libpath, sizeof(libpath) - 1, "libs\\%s.so", dllname);
-    return LoadLibraryA(libpath);
-#endif
-}
-
-
-#define dlerror()           (GetLastError() == 127)
-#define dlsym(handle, sym)  (SetLastError(0), (FARPROC) GetProcAddress(handle, sym))
-
 #define perror(text)        printf("Error - %s: %d\n", text, GetLastError())
 #define strcasecmp          stricmp
 #define strncasecmp         strnicmp
@@ -171,6 +132,9 @@ static inline void *load_library(const char *dllname)
 #define PAGE_READWRITE          0x04
 #define PAGE_EXECUTE_READ       0x20
 #define PAGE_EXECUTE_READWRITE  0x40
+
+#define IsValidHandle(handle)   (handle != (HANDLE) -1)
+#define FlushFile(handle)       FlushFileBuffers(handle)
 
 static inline DWORD memprot(int prot)
 {
@@ -197,66 +161,31 @@ static inline int mprotect(void *addr, size_t len, int prot)
     return VirtualProtect(addr, len, memprot(prot), &dummy) ? 0 : -1;
 }
 
-#else
+#else /* !_WIN32 — Linux only */
+
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <dlfcn.h>
 #include <sys/mman.h>
 #include <time.h>
-
-#if defined(__linux)
-# if defined(__i386__)
-#  include <asm/ldt.h>
-# elif defined(__x86_64__)
-#  include <asm/prctl.h>
-#  include <sys/syscall.h>
-# endif
 #include <sys/sysinfo.h>
-#elif defined(__FreeBSD__)
-#include <machine/segments.h>
-#include <machine/sysarch.h>
-#elif defined(__APPLE__)
-#include <i386/user_ldt.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
+
+#if defined(__i386__)
+# include <asm/ldt.h>
+#elif defined(__x86_64__)
+# include <asm/prctl.h>
+# include <sys/syscall.h>
 #endif
 
 #ifndef MAP_ANONYMOUS
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#ifndef RTLD_DEEPBIND
-#define RTLD_DEEPBIND 0
-#endif
-
-#ifndef LIBNLOADER
-#define LIBNLOADER "/usr/lib/nloader"
-#endif
-
-static inline void *load_library(const char *dllname)
-{
-    char libpath[512];
-    void *handle;
-
-    if (!dllname)
-        return dlopen(NULL, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);
-
-    snprintf(libpath, sizeof(libpath) - 1, LIBNLOADER"/%s.so", dllname);
-    handle = dlopen(libpath, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);
-
-    if (handle)
-        return handle;
-
-    snprintf(libpath, sizeof(libpath) - 1, "libs/%s.so", dllname);
-    return dlopen(libpath, RTLD_NOW|RTLD_LOCAL|RTLD_DEEPBIND);
-}
-
 /* TEB pointer install: makes the per-thread "current TEB" register point at
  * the supplied TEB. On x86 Linux we allocate a per-process LDT entry and load
  * it into FS; on x86_64 Linux we use arch_prctl to set the GS base directly
  * (per-thread, restored across context switches by the kernel). */
-#if !defined(__x86_64__)
+#if defined(__i386__)
 struct modify_ldt_s
 {
     unsigned int  entry_number;
@@ -271,21 +200,10 @@ struct modify_ldt_s
 };
 
 #define LDT_SEL(idx) ((idx) << 3 | 1 << 2 | 3)
-#endif
-
-#if defined(__linux)
-
-#if defined(__i386__)
-extern int modify_ldt(int func, struct modify_ldt_s *fs_ldt, unsigned long bytecount);
 #define TEB_SEL_IDX 17
-#endif
 
-#if defined(__x86_64__)
-static inline int install_teb(void *teb)
-{
-    return (int) syscall(SYS_arch_prctl, ARCH_SET_GS, (unsigned long) teb);
-}
-#elif defined(__i386__)
+extern int modify_ldt(int func, struct modify_ldt_s *fs_ldt, unsigned long bytecount);
+
 static inline int install_teb(void *teb)
 {
     struct modify_ldt_s fs_ldt;
@@ -305,6 +223,13 @@ static inline int install_teb(void *teb)
                      : : "r" (LDT_SEL(fs_ldt.entry_number)) : "eax");
     return 0;
 }
+#elif defined(__x86_64__)
+static inline int install_teb(void *teb)
+{
+    return (int) syscall(SYS_arch_prctl, ARCH_SET_GS, (unsigned long) teb);
+}
+#else
+# error unsupported arch
 #endif
 
 static inline int uptime(void)
@@ -315,61 +240,10 @@ static inline int uptime(void)
     return 0;
 }
 
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-// old wine loader in mplayer
-
-#define TEB_SEL_IDX LDT_AUTO_ALLOC
-
-static inline void LDT_EntryToBytes(unsigned long *buffer, const struct modify_ldt_s *content)
-{
-    *buffer++ = ((content->base_addr & 0x0000ffff) << 16) | (content->limit & 0x0ffff);
-
-    *buffer = (content->base_addr & 0xff000000) |
-    ((content->base_addr & 0x00ff0000)>>16) |
-    (content->limit & 0xf0000) |
-    (content->contents << 10) |
-    ((content->read_exec_only == 0) << 9) |
-    ((content->seg_32bit != 0) << 22) |
-    ((content->limit_in_pages != 0) << 23) |
-    0xf000;
-}
-
-static inline int modify_ldt(int func, struct modify_ldt_s *fs_ldt, unsigned long bytecount)
-{
-    int ret;
-    unsigned long entry[2];
-    LDT_EntryToBytes(entry, fs_ldt);
-    ret = i386_set_ldt(fs_ldt->entry_number, (void *) entry, 1);
-    return fs_ldt->entry_number = ret;
-}
-
-static inline int uptime(void)
-{
-
-#if defined(__FreeBSD__)
-    struct timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1)
-        return ts.tv_sec;
-#elif defined( __APPLE__)
-    struct timeval uptime;
-    size_t len = sizeof(uptime);
-    int mib[2] = { CTL_KERN, KERN_BOOTTIME };
-    if (sysctl(mib, 2, &uptime, &len, NULL, 0) == 0)
-        return time(NULL) - uptime.tv_sec;
-#endif
-    return 0;
-}
-
-#define MODIFY_LDT_CONTENTS_DATA 0
-#else
-# error Mboh?
-#endif
-
 #define O_BINARY                0
 #define IsValidHandle(handle)   (handle != -1)
 #define FlushFile(handle)       (fsync(handle) == 0)
 
-
-#endif
+#endif /* !_WIN32 */
 
 #endif /* __NT_COMPAT_H */
