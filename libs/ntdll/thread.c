@@ -174,6 +174,13 @@ NTSTATUS NTAPI RtlEnterCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
     return STATUS_SUCCESS;
 }
 
+BOOLEAN NTAPI RtlTryEnterCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
+{
+    Log("ntdll.RtlTryEnterCriticalSection(%p)\n", CriticalSection);
+    return pthread_mutex_trylock((pthread_mutex_t *) CriticalSection->LockSemaphore) == 0
+        ? TRUE : FALSE;
+}
+
 NTSTATUS NTAPI RtlLeaveCriticalSection(PRTL_CRITICAL_SECTION CriticalSection)
 {
     Log("ntdll.RtlLeaveCriticalSection(%p)\n", CriticalSection);
