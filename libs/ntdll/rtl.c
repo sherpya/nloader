@@ -389,23 +389,28 @@ BOOLEAN NTAPI RtlEqualUnicodeString(PCUNICODE_STRING String1, PCUNICODE_STRING S
     return res;
 }
 
-static void *get_arg(int no, va_list *args, BOOLEAN ArgumentIsArray)
+/* Arguments crosses an ms_abi boundary (autochk's va_list[20] is laid out as
+ * Win64 char* slots — 8 bytes each — and ArgumentIsArray=TRUE makes each slot
+ * a WCHAR* substitution pointer). On x86_64 Linux GCC's plain va_list is the
+ * 24-byte SysV __va_list_tag struct, so indexing it would stride wrong and
+ * va_arg would walk SysV gp_offset on a Win64 ap. Use ms_va_list throughout. */
+static void *get_arg(int no, ms_va_list *args, BOOLEAN ArgumentIsArray)
 {
     void *sel;
 
     if (ArgumentIsArray)
-        return args[no];
+        return ((void **) args)[no];
 
     do
     {
-        sel = va_arg(*args, void *);
+        sel = ms_va_arg(*args, void *);
         no--;
     } while (no > 0);
     return sel;
 }
 
 NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreInserts, BOOLEAN Ansi,
-    BOOLEAN ArgumentIsArray, va_list *Arguments, LPWSTR Buffer, ULONG BufferSize, PULONG ReturnLength)
+    BOOLEAN ArgumentIsArray, ms_va_list *Arguments, LPWSTR Buffer, ULONG BufferSize, PULONG ReturnLength)
 {
     // FIXME: no check for BufferSize
     WCHAR c, *msg = Message;
