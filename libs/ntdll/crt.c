@@ -26,6 +26,7 @@
  */
 
 #include "ntdll.h"
+#include "errno.h"
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
@@ -147,6 +148,46 @@ LPWSTR CDECL rpl_wcscat(LPWSTR dest, LPCWSTR src)
     return dest;
 }
 
+errno_t CDECL rpl_wcscat_s(LPWSTR dest, size_t dest_size, LPCWSTR src)
+{
+    if (!dest || !dest_size)
+        return EINVAL;
+
+    if (!src)
+    {
+        *dest = L'\0';
+        return EINVAL;
+    }
+
+    WCHAR *out = dest;
+    size_t remaining = dest_size;
+
+    while (*out)
+    {
+        ++out;
+
+        if (!--remaining)
+        {
+            *dest = L'\0';
+            return EINVAL;
+        }
+    }
+
+    while (remaining)
+    {
+        WCHAR ch = *src++;
+        *out++ = ch;
+
+        if (!ch)
+            return 0;
+
+        --remaining;
+    }
+
+    *dest = L'\0';
+    return ERANGE;
+}
+
 int CDECL rpl_wcscmp(LPCWSTR s1, LPCWSTR s2)
 {
     DECLAREVARCONV(s1A);
@@ -244,6 +285,32 @@ LPWSTR CDECL rpl_wcscpy(LPWSTR dest, LPCWSTR src)
         *s++ = *src++;
     *s = 0;
     return dest;
+}
+
+errno_t CDECL rpl_wcscpy_s(LPWSTR dest, size_t dest_size, LPCWSTR src)
+{
+    if (!dest || !dest_size)
+        return EINVAL;
+
+    WCHAR *start = dest;
+
+    if (!src)
+    {
+        *dest = L'\0';
+        return EINVAL;
+    }
+
+    while (dest_size--)
+    {
+        WCHAR ch = *src++;
+        *dest++ = ch;
+
+        if (!ch)
+            return 0;
+    }
+
+    *start = L'\0';
+    return ERANGE;
 }
 
 LPWSTR CDECL rpl_wcsrchr(LPCWSTR s, WCHAR c)

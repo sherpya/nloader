@@ -53,6 +53,14 @@ MODULE(sd)
 
 #define SECURITY_MANDATORY_LABEL_AUTHORITY      { 0, 0, 0, 0, 0, 16 }
 
+
+/* from ReactOS */
+#define ALIGN_DOWN_BY(size, align) \
+    ((ULONG_PTR)(size) & ~((ULONG_PTR)(align) - 1))
+
+#define ALIGN_DOWN(size, type) \
+    ALIGN_DOWN_BY(size, sizeof(type))
+
 typedef DWORD SECURITY_INFORMATION,*PSECURITY_INFORMATION;
 typedef PVOID PSID;
 
@@ -131,10 +139,7 @@ typedef struct _ACE
 BOOLEAN NTAPI RtlValidSid(PSID Sid_)
 {
     PISID Sid = Sid_;
-
-    if ((Sid->Revision != SID_REVISION) || (Sid->SubAuthorityCount > SID_MAX_SUB_AUTHORITIES))
-        return FALSE;
-    return TRUE;
+    return Sid && ((Sid->Revision & 0xf) == SID_REVISION) && (Sid->SubAuthorityCount <= SID_MAX_SUB_AUTHORITIES);
 }
 
 ULONG NTAPI RtlLengthSid(PSID Sid_)
@@ -155,19 +160,18 @@ NTSTATUS NTAPI RtlInitializeSid(PSID Sid_, PSID_IDENTIFIER_AUTHORITY IdentifierA
 
     Sid->Revision = SID_REVISION;
     Sid->SubAuthorityCount = SubAuthorityCount;
-
-    memcpy(&Sid->IdentifierAuthority, IdentifierAuthority, sizeof(SID_IDENTIFIER_AUTHORITY));
+    Sid->IdentifierAuthority = *IdentifierAuthority;
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS NTAPI RtlCopySid(ULONG BufferLength, PSID Dest, PSID Src)
 {
+    ULONG SidLength = RtlLengthSid(Src);
+    if (SidLength > BufferLength)
+        return STATUS_BUFFER_TOO_SMALL;
 
-    if (BufferLength < RtlLengthSid(Src))
-        return STATUS_UNSUCCESSFUL;
-
-    memmove(Dest, Src, RtlLengthSid(Src));
+    memmove(Dest, Src, SidLength);
 
     return STATUS_SUCCESS;
 }
@@ -463,50 +467,87 @@ NTSTATUS NTAPI RtlQueryInformationAcl(PACL Acl, PVOID Information,
     return STATUS_SUCCESS;
 }
 
+/* from ReactOS */
+BOOLEAN NTAPI RtlpValidateSDOffsetAndSize(IN ULONG Offset, IN ULONG Length, IN ULONG MinLength,
+    OUT PULONG MaxLength)
+{
+    *MaxLength = 0;
+
+    /* Reject out of bounds lengths */
+    if (Offset < sizeof(SECURITY_DESCRIPTOR_RELATIVE))
+        return FALSE;
+    if (Offset >= Length)
+        return FALSE;
+
+    /* Reject insufficient lengths */
+    if ((Length - Offset) < MinLength)
+        return FALSE;
+
+    /* Reject unaligned offsets */
+    if (ALIGN_DOWN(Offset, ULONG) != Offset)
+        return FALSE;
+
+    /* Return length that is safe to read */
+    *MaxLength = Length - Offset;
+    return TRUE;
+}
+
+
 BOOLEAN NTAPI RtlValidRelativeSecurityDescriptor(PSECURITY_DESCRIPTOR SecurityDescriptorInput,
     ULONG SecurityDescriptorLength, SECURITY_INFORMATION RequiredInformation)
 {
-    PISECURITY_DESCRIPTOR pSD = (PISECURITY_DESCRIPTOR) SecurityDescriptorInput;
+    ULONG Length;
+    PISECURITY_DESCRIPTOR_RELATIVE pSD = (PISECURITY_DESCRIPTOR_RELATIVE) SecurityDescriptorInput;
 
     if (SecurityDescriptorLength < sizeof(SECURITY_DESCRIPTOR_RELATIVE) ||
             pSD->Revision != SECURITY_DESCRIPTOR_REVISION1 || !(pSD->Control & SE_SELF_RELATIVE))
         return FALSE;
 
-    if (pSD->Owner != 0)
+    if (pSD->Owner)
     {
+        if (!RtlpValidateSDOffsetAndSize(pSD->Owner, SecurityDescriptorLength, sizeof(SID), &Length))
+            return FALSE;
+
         PSID Owner = (PSID)((ULONG_PTR)pSD->Owner + (ULONG_PTR)pSD);
-        if (!RtlValidSid(Owner))
+        if (!RtlValidSid(Owner) || (Length < RtlLengthSid(Owner)))
             return FALSE;
     }
     else if (RequiredInformation & OWNER_SECURITY_INFORMATION)
         return FALSE;
 
-    if (pSD->Group != 0)
+    if (pSD->Group)
     {
+        if (!RtlpValidateSDOffsetAndSize(pSD->Group, SecurityDescriptorLength, sizeof(SID), &Length))
+            return FALSE;
+
         PSID Group = (PSID)((ULONG_PTR)pSD->Group + (ULONG_PTR)pSD);
-            if (!RtlValidSid(Group))
-         return FALSE;
+        if (!RtlValidSid(Group) || (Length < RtlLengthSid(Group)))
+            return FALSE;
     }
     else if (RequiredInformation & GROUP_SECURITY_INFORMATION)
         return FALSE;
 
     if (pSD->Control & SE_DACL_PRESENT)
     {
-        if (pSD->Dacl != 0 && !RtlValidAcl((PACL)((ULONG_PTR)pSD->Dacl + (ULONG_PTR)pSD)))
+        if (!RtlpValidateSDOffsetAndSize(pSD->Dacl, SecurityDescriptorLength, sizeof(ACL), &Length))
+            return FALSE;
+
+        PACL Dacl = (PSID)((ULONG_PTR)pSD->Dacl + (ULONG_PTR)pSD);
+        if (!(RtlValidAcl(Dacl)) || (Length < Dacl->AclSize))
             return FALSE;
     }
-    else if (RequiredInformation & DACL_SECURITY_INFORMATION)
-      return FALSE;
 
     if (pSD->Control & SE_SACL_PRESENT)
     {
-        if (pSD->Sacl != 0 && !RtlValidAcl((PACL)((ULONG_PTR)pSD->Sacl + (ULONG_PTR)pSD)))
-         return FALSE;
-    }
-    else if (RequiredInformation & SACL_SECURITY_INFORMATION)
-      return FALSE;
+        if (!RtlpValidateSDOffsetAndSize(pSD->Sacl, SecurityDescriptorLength, sizeof(ACL), &Length))
+            return FALSE;
 
-   return TRUE;
+        PACL Sacl = (PSID)((ULONG_PTR)pSD->Sacl + (ULONG_PTR)pSD);
+        if (!(RtlValidAcl(Sacl)) || (Length < Sacl->AclSize))
+            return FALSE;
+    }
+
+    return TRUE;
 }
 
 static VOID RtlpQuerySecurityDescriptorPointers(PISECURITY_DESCRIPTOR SecurityDescriptor,
