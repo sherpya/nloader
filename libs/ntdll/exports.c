@@ -279,6 +279,7 @@ NL_EXPORT(ntdll, RtlValidSid)
 /* --- generic table / time / version ---------------------------------- */
 NL_EXPORT(ntdll, RtlDeleteElementGenericTable)
 NL_EXPORT(ntdll, RtlDeleteElementGenericTableAvl)
+NL_EXPORT(ntdll, RtlDeleteElementGenericTableAvlEx)
 NL_EXPORT(ntdll, RtlEnumerateGenericTableAvl)
 NL_EXPORT(ntdll, RtlEnumerateGenericTableWithoutSplaying)
 NL_EXPORT(ntdll, RtlEnumerateGenericTableWithoutSplayingAvl)

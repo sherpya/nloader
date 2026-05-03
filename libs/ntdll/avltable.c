@@ -303,15 +303,15 @@ RtlDeleteElementGenericTableAvl(IN PRTL_AVL_TABLE Table,
     /* Find the node */
     SearchResult = RtlpFindAvlTableNodeOrParent(Table, Buffer, &Node);
     if (SearchResult != TableFoundNode) return FALSE;
-    
+
     /* If this node was the key, update it */
     if (Node == Table->RestartKey) Table->RestartKey = RtlRealPredecessorAvl(Node);
-    
+
     /* Do the delete */
     Table->DeleteCount++;
     RtlpDeleteAvlTreeNode(Table, Node);
     Table->NumberGenericTableElements--;
-    
+
     /* Reset accounting */
     Table->WhichOrderedElement = 0;
     Table->OrderedPointer = NULL;
@@ -320,6 +320,30 @@ RtlDeleteElementGenericTableAvl(IN PRTL_AVL_TABLE Table,
     Table->FreeRoutine(Table, Node);
 
     /* It's done */
+    return TRUE;
+}
+
+/* Direct-node variant: skips the Compare-driven lookup because the caller
+ * already has the RTL_BALANCED_LINKS pointer (typically the NodeOrParent
+ * out-arg from RtlLookupElementGenericTableFullAvl). Aliasing this onto
+ * the non-Ex variant would feed Compare a tree-node pointer where it
+ * expects user data — wrong/undefined. */
+BOOLEAN NTAPI RtlDeleteElementGenericTableAvlEx(IN PRTL_AVL_TABLE Table,
+                                                IN PVOID NodeOrParent)
+{
+    PRTL_BALANCED_LINKS Node = (PRTL_BALANCED_LINKS) NodeOrParent;
+
+    if (Node == Table->RestartKey) Table->RestartKey = RtlRealPredecessorAvl(Node);
+
+    Table->DeleteCount++;
+    RtlpDeleteAvlTreeNode(Table, Node);
+    Table->NumberGenericTableElements--;
+
+    Table->WhichOrderedElement = 0;
+    Table->OrderedPointer = NULL;
+
+    Table->FreeRoutine(Table, Node);
+
     return TRUE;
 }
 
