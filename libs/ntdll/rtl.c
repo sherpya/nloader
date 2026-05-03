@@ -471,15 +471,30 @@ NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreIn
             {
                 int argnum = wtoi(c);
                 WCHAR *arg;
-                if (isdigit(msg[1]))
+                /* Two-digit positional (%12, %23, ...). The next char in
+                 * `msg` is what follows the first digit — not msg[1]. */
+                if (isdigit(*msg))
                 {
-                    msg++;
                     argnum = (argnum * 10) + wtoi(*msg);
+                    msg++;
                 }
                 argnum--;
                 arg = get_arg(argnum, Arguments, ArgumentIsArray);
                 rpl_wcscat(&Buffer[count], arg);
                 count += rpl_wcslen(arg);
+                /* MS positional may be followed by `!printf-spec!` (e.g.
+                 * `%1!d!`, `%2!I64x!`, `%3!02d!`). autochk's
+                 * QueryResourceStringV pre-formats each Argument via
+                 * StringCchPrintfW into a WCHAR*, so the runtime arg is
+                 * already a string — we just skip the `!...!` block. */
+                if (*msg == L'!')
+                {
+                    msg++;
+                    while (*msg && *msg != L'!')
+                        msg++;
+                    if (*msg == L'!')
+                        msg++;
+                }
                 break;
             }
         }
