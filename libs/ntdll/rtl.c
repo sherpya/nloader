@@ -540,6 +540,33 @@ NTSTATUS NTAPI RtlSetSystemBootStatus(ULONG InformationClass, PVOID DataBuffer, 
     return STATUS_SUCCESS;
 }
 
+/* Real Windows looks up a redirect under \Registry\Machine\Software\Microsoft\
+ * Windows NT\CurrentVersion\PersistedStateRoot[\AlternateRoot]\<SourceName>
+ * and reads CustomValue (default "TargetPath") as REG_EXPAND_SZ. When that
+ * lookup fails, the function copies DefaultPath verbatim into TargetPath and
+ * still returns STATUS_SUCCESS (Win11 disasm: loc_1800788D1 zeroes EDI via
+ * sbb/and 0x80000005 once the buffer fits). autochk's caller relies on this:
+ * it prepends "\Registry\Machine\" to the result and falls back to its own
+ * hardcoded default when the composed path doesn't resolve. */
+NTSTATUS NTAPI RtlGetPersistedStateLocation(PCWSTR SourceName, PCWSTR CustomValue,
+    PCWSTR DefaultPath, ULONG StateLocation, PWSTR TargetPath,
+    ULONG BufferLengthInBytes, ULONG *BufferLengthOut)
+{
+    (void) SourceName;
+    (void) CustomValue;
+    if (StateLocation > 1) return STATUS_INVALID_PARAMETER;
+    if (!DefaultPath) return STATUS_OBJECT_NAME_NOT_FOUND;
+
+    ULONG bytes_needed = (ULONG) ((rpl_wcslen(DefaultPath) + 1) * sizeof(WCHAR));
+    if (BufferLengthOut) *BufferLengthOut = bytes_needed;
+
+    if (!TargetPath || BufferLengthInBytes < bytes_needed)
+        return STATUS_BUFFER_OVERFLOW;
+
+    memcpy(TargetPath, DefaultPath, bytes_needed);
+    return STATUS_SUCCESS;
+}
+
 /* The real implementation translates Status via RtlNtStatusToDosError and
  * stores both fields in the TEB. We don't have the translation table, and no
  * caller in our flow inspects LastErrorValue, so just stash the raw status
