@@ -141,8 +141,7 @@ LPWSTR CDECL rpl_wcscat(LPWSTR dest, LPCWSTR src)
     Log("ntdll.wcscat(\"%s\", \"%s\")\n", destA, srcA);
 
     d = dest;
-
-/*    while (*d++); d--; */ // FIXME: why not?
+    while (*d) ++d;
     while ((*d++ = *src++));
 
     return dest;
