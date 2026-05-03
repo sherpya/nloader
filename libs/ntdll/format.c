@@ -248,20 +248,211 @@ int CDECL rpl_swprintf_s(WCHAR *buffer, size_t sizeOfBuffer, const WCHAR *format
     return retval;
 }
 
+/* Walk a 16-bit WCHAR* and emit each unit to `out` as ASCII (non-ASCII → '?').
+ * Cannot delegate to glibc's %S: glibc's wchar_t is 32-bit while our WCHAR is
+ * 16-bit (-fshort-wchar), so glibc would misalign the read. */
+static void __dbg_emit_wstr(const WCHAR *s, FILE *out)
+{
+    if (!s) { fputs("(null)", out); return; }
+    while (*s)
+    {
+        WCHAR c = *s++;
+        fputc(c < 0x80 ? (char) c : '?', out);
+    }
+}
+
+/* Char-format printer with NT/MS conventions for an ANSI format string:
+ *   %s/%hs        → char*           %S/%ws/%ls    → WCHAR* (16-bit)
+ *   %c/%hc        → char            %C/%wc/%lc    → WCHAR
+ *   %I/%I32/%I64  → MS size prefix; remapped to glibc-friendly ll/(none)
+ * Numeric/float specs are forwarded to snprintf with a normalized sub-format.
+ * The caller's va_list is ms_abi (CDECL == ms_abi on x86_64 Linux), so we
+ * walk it via ms_va_arg — generic va_arg would expand to SysV semantics and
+ * desync from the slots placed by the Win64 caller. */
+static int __dbg_print(const char *fmt, ms_va_list argv, FILE *out)
+{
+    char spec[64];
+    int total = 0;
+
+    while (*fmt)
+    {
+        if (*fmt != '%')
+        {
+            fputc(*fmt++, out);
+            total++;
+            continue;
+        }
+
+        int n = 0;
+        spec[n++] = *fmt++;  /* '%' */
+
+        /* flags */
+        while (*fmt && strchr("-+ #0", *fmt) && n < (int) sizeof(spec) - 8)
+            spec[n++] = *fmt++;
+        /* width */
+        if (*fmt == '*' && n < (int) sizeof(spec) - 8)
+            spec[n++] = *fmt++;
+        else
+            while (*fmt >= '0' && *fmt <= '9' && n < (int) sizeof(spec) - 8)
+                spec[n++] = *fmt++;
+        /* precision */
+        if (*fmt == '.' && n < (int) sizeof(spec) - 8)
+        {
+            spec[n++] = *fmt++;
+            if (*fmt == '*' && n < (int) sizeof(spec) - 8)
+                spec[n++] = *fmt++;
+            else
+                while (*fmt >= '0' && *fmt <= '9' && n < (int) sizeof(spec) - 8)
+                    spec[n++] = *fmt++;
+        }
+
+        /* length modifier — track wide/64-bit semantics, normalize for snprintf. */
+        int wide_arg = 0;
+        int long64 = 0;
+
+        if (*fmt == 'l')
+        {
+            fmt++;
+            if (*fmt == 'l')
+            {
+                fmt++; long64 = 1;
+                spec[n++] = 'l'; spec[n++] = 'l';
+            }
+            else
+                wide_arg = 1;  /* %ls/%lc → WCHAR* / WCHAR */
+        }
+        else if (*fmt == 'h')
+        {
+            fmt++;
+            if (*fmt == 'h') { fmt++; spec[n++] = 'h'; spec[n++] = 'h'; }
+            else { spec[n++] = 'h'; }
+        }
+        else if (*fmt == 'I')
+        {
+            fmt++;
+            if (fmt[0] == '6' && fmt[1] == '4')
+            {
+                fmt += 2; long64 = 1;
+                spec[n++] = 'l'; spec[n++] = 'l';
+            }
+            else if (fmt[0] == '3' && fmt[1] == '2')
+                fmt += 2;  /* default 32-bit */
+            else
+            {
+                /* %I — pointer-sized; on x86_64 that's 64-bit. */
+                long64 = 1;
+                spec[n++] = 'l'; spec[n++] = 'l';
+            }
+        }
+        else if (*fmt == 'w')
+        {
+            fmt++;
+            wide_arg = 1;
+        }
+
+        char conv = *fmt;
+        if (!conv) break;
+        fmt++;
+
+        switch (conv)
+        {
+            case '%':
+                fputc('%', out); total++;
+                break;
+
+            case 's':
+                if (wide_arg)
+                    __dbg_emit_wstr(ms_va_arg(argv, WCHAR *), out);
+                else
+                {
+                    char *s = ms_va_arg(argv, char *);
+                    fputs(s ? s : "(null)", out);
+                }
+                break;
+
+            case 'S':
+                /* Opposite of default: ANSI fn → WCHAR*. */
+                __dbg_emit_wstr(ms_va_arg(argv, WCHAR *), out);
+                break;
+
+            case 'c':
+                if (wide_arg)
+                {
+                    int c = ms_va_arg(argv, int) & 0xffff;
+                    fputc(c < 0x80 ? (char) c : '?', out);
+                }
+                else
+                    fputc((char) ms_va_arg(argv, int), out);
+                break;
+
+            case 'C':
+            {
+                int c = ms_va_arg(argv, int) & 0xffff;
+                fputc(c < 0x80 ? (char) c : '?', out);
+                break;
+            }
+
+            case 'd': case 'i': case 'u': case 'o': case 'x': case 'X':
+            {
+                char buf[64];
+                spec[n++] = conv;
+                spec[n] = 0;
+                if (long64)
+                    snprintf(buf, sizeof(buf), spec, ms_va_arg(argv, long long));
+                else
+                    snprintf(buf, sizeof(buf), spec, ms_va_arg(argv, int));
+                fputs(buf, out);
+                break;
+            }
+
+            case 'p':
+            {
+                char buf[64];
+                spec[n++] = conv;
+                spec[n] = 0;
+                snprintf(buf, sizeof(buf), spec, ms_va_arg(argv, void *));
+                fputs(buf, out);
+                break;
+            }
+
+            case 'f': case 'e': case 'E': case 'g': case 'G': case 'a': case 'A':
+            {
+                char buf[64];
+                spec[n++] = conv;
+                spec[n] = 0;
+                snprintf(buf, sizeof(buf), spec, ms_va_arg(argv, double));
+                fputs(buf, out);
+                break;
+            }
+
+            default:
+                /* Unknown spec — copy literally and stop consuming args. */
+                fputc('%', out);
+                fputc(conv, out);
+                break;
+        }
+    }
+
+    fflush(out);
+    return total;
+}
+
 ULONG CDECL DbgPrint(char *format, ...)
 {
-    va_list argptr;
-    va_start(argptr, format);
-    vprintf(format, argptr);
-    va_end(argptr);
+    ms_va_list argptr;
+    ms_va_start(argptr, format);
+    __dbg_print(format, argptr, stdout);
+    ms_va_end(argptr);
     return STATUS_SUCCESS;
 }
 
 ULONG CDECL DbgPrintEx(ULONG ComponentId, ULONG Level, const char *format, ...)
 {
-    va_list argptr;
-    va_start(argptr, format);
-    vprintf(format, argptr);
-    va_end(argptr);
+    ms_va_list argptr;
+    (void) ComponentId;
+    (void) Level;
+    ms_va_start(argptr, format);
+    __dbg_print(format, argptr, stdout);
+    ms_va_end(argptr);
     return STATUS_SUCCESS;
 }
