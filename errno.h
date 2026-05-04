@@ -32,5 +32,6 @@ typedef int errno_t;
 
 #define EINVAL 22
 #define ERANGE 34
+#define ETIMEDOUT 110
 
 #endif /* _ERRNO_H */
