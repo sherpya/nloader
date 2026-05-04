@@ -447,12 +447,13 @@ NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreIn
                 eos = 1;
                 break;
             case 'r':
+                /* %r positions the cursor at column 0 so the next message
+                 * overwrites in-place. Appending \x1b[K here would erase
+                 * the text we just wrote — let the next print do the
+                 * overwrite (autochk's countdown / progress messages
+                 * keep a constant width, so trailing chars aren't an
+                 * issue in practice). */
                 Buffer[count++] = L'\r';
-#ifndef _WIN32
-                // clear the line on unix
-                rpl_wcscpy(&Buffer[count], L"\x1b[K");
-                count += 3;
-#endif
                 break;
             case 'n':
                 Buffer[count++] = L'\n';
