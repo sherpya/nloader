@@ -37,76 +37,97 @@ cmake -B build
 cmake --build build -j
 ```
 
-By default the build matches the host architecture. To force a 32-bit build
-on an x86_64 host pass `-DNLOADER_ARCH=i386` at configure time.
+By default the build matches the host architecture (x86_64 or i386). To force
+a 32-bit build on an x86_64 host pass `-DNLOADER_ARCH=i386` at configure time.
 
 If you are on Linux OS and provide an autochk.exe by placing it at the toplevel
 directory, the build will produce a standalone executable that also contains
 the native Windows executable, suitable for a Live CD.
 
-You can find a suitable autochk.exe directly in windows 7 sp1 x86 (KB976932).
-Just download windows6.1-KB976932-X86.exe (unfortunately you can only pick the link
-after verifying that your windows is genuine - wow!).
-
-Then you can pick directly the needed executable with cabextract:
+The current smoke-test target is the Windows 10 / 11 x86_64 autochk.exe.
+The legacy Windows 7 SP1 x86 build also still works on i386: grab
+`windows6.1-KB976932-X86.exe` and extract:
 <pre>
 cabextract -p -F "*autochk.exe" windows6.1-KB976932-X86.exe > autochk.exe
+</pre>
+
+To generate a small NTFS test image (`disk.img`, ~2 GB) build the
+out-of-tree `disk_img` target — it shells out to `mkntfs`:
+<pre>
+cmake --build build --target disk_img
 </pre>
 
 
 How to run
 ----------
 
-First of all you need a native executable. If you want to run autochk.exe pick
-the one from W7. Threading is not properly implemented and, for some weird
-reason, all previous versions rely on it.
+First of all you need a native executable. The repo's two main test paths use
+autochk.exe (Windows 10 / 11 x86_64).
 
-Then simply execute: ./nloader autochk.exe -p disk.img
+Then simply execute: `./nloader autochk.exe -p disk.img`
 
-NOTE: -p option will force the check even if the disk is not flagged as dirty
+A few useful invocations:
+
+<pre>
+./nloader autochk.exe '*'              # query global autochk state, exits 0
+./nloader autochk.exe -v -p disk.img   # verbose, force scan even if clean
+</pre>
+
+`-p` forces the check even if the disk is not flagged as dirty. On Windows 10+
+`autochk -p` short-circuits with "The volume is clean" if the dirty bit
+isn't set. To exercise the actual scan path against `disk.img`, set the dirty
+bit first via the helper script (it has to be re-run before each scan because
+autochk clears the flag at the end):
+
+<pre>
+python3 setdirty.py build/disk.img
+./nloader autochk.exe -v -p disk.img
+</pre>
 
 You should get something like:
 
 <pre>
+Checking file system on disk.img
 The type of the file system is NTFS.
-Volume label is sheghey. (guarda che me ne so accorto)
+Volume label is Native.
 
 One of your disks needs to be checked for consistency. You
 may cancel the disk check, but it is strongly recommended
 that you continue.
 Windows will now check the disk.
 
-CHKDSK is verifying files (stage 1 of 3)...
-
+Stage 1: Examining basic file system structure ...
+  27 file records processed.
 File verification completed.
+ Phase duration (File record verification): 0.76 milliseconds.
+  0 large file records processed.
+ Phase duration (Orphan file record recovery): 0.09 milliseconds.
+  0 bad file records processed.
+ Phase duration (Bad file record checking): 0.08 milliseconds.
 
-CHKDSK is verifying indexes (stage 2 of 3)...
-Deleting index entry System Volume Information in index $I30 of file 5.
-
+Stage 2: Examining file name linkage ...
+  39 index entries processed.
 Index verification completed.
+ Phase duration (Index verification): 1.93 milliseconds.
+  0 unindexed files scanned.
+ Phase duration (Orphan reconnection): 0.17 milliseconds.
+  0 unindexed files recovered to lost and found.
+ Phase duration (Orphan recovery to lost and found): 0.20 milliseconds.
+  0 reparse records processed.
+  0 reparse records processed.
+ Phase duration (Reparse point and Object ID verification): 0.13 milliseconds.
 
-CHKDSK is verifying security descriptors (stage 3 of 3)...
-
-Security descriptor verification completed.
-
-Windows has checked the file system and found no problems.
-
-   2094079 KB total disk space.
-    854716 KB in 4754 files.
-      1808 KB in 302 indexes.
-         0 KB in bad sectors.
-     18379 KB in use by the system.
-     12528 KB occupied by the log file.
-   1219176 KB available on disk.
-
-      4096 bytes in each allocation unit.
-    523519 total allocation units on disk.
-    304794 allocation units available on disk.
+Stage 3: Examining security descriptors ...
+Windows has finished checking the disk.
 </pre>
 
+The 10-second "press any key to skip disk checking" countdown is
+interactive — a key press during the window aborts the scan, just like
+on Windows.
 
 If you want to trace all api calls, you can enable debug logging via the NLOG
-environment variable.
+environment variable (`NLOG=all` for everything, or restrict to a subsystem
+like `NLOG=rtl`, `NLOG=io`, `NLOG=nt`).
 Note that this can result in a lot of spam, expecially if you set NLOG=all.
 
 
@@ -144,3 +165,11 @@ Compatibility
 We've tested a few native executable and the results are quite variable. Some
 work perfectly, some aborts soon due to some unimplemented API, some totally
 misbehave, likely due some limitations in the emu layer.
+
+Current smoke-test status (x86_64):
+
+ - `autochk.exe '*'` — exits 0 cleanly.
+ - `autochk.exe -v -p disk.img` on a dirty image — full Stage 1/2/3 scan
+   completes with "Windows has finished checking the disk."
+
+The next known blocker is `libs/bcd` (`BcdOpenStore` is still a placeholder).
