@@ -165,6 +165,11 @@ NTSTATUS NTAPI NtWaitForMultipleObjects(ULONG ObjectCount, PHANDLE ObjectsArray,
 
         for (;;)
         {
+            /* Complete any parked stdin keyboard read whose byte just
+             * arrived — sets the parked Event so the loop below can
+             * pick it up on this same iteration. */
+            nl_kbd_pump();
+
             for (ULONG i = 0; i < ObjectCount; i++)
             {
                 HANDLE h = ObjectsArray[i];

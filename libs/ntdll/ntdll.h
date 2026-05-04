@@ -337,4 +337,8 @@ typedef struct tagKEYBOARD_INPUT_DATA {
     ULONG ExtraInformation;
 } KEYBOARD_INPUT_DATA, *PKEYBOARD_INPUT_DATA;
 
+/* Defined in io.c. Tickled from sync.c's wait loops to complete a
+ * parked stdin keyboard read once a byte arrives. */
+void nl_kbd_pump(void);
+
 #endif /* _NTDLL_H */

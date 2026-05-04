@@ -42,7 +42,14 @@ typedef VOID (NTAPI *NLOADER_APC_ROUTINE)(PVOID ApcContext, PIO_STATUS_BLOCK IoS
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <termios.h>
-#elif defined(__FreeBSD__) || defined(__APPLE__)
+#endif
+
+#ifndef _WIN32
+#include <poll.h>
+#include <unistd.h>
+#endif
+
+#if defined(__FreeBSD__) || defined(__APPLE__)
 #include <sys/disk.h>
 #include <sys/param.h>
 #include <sys/ucred.h>
@@ -356,28 +363,131 @@ NTSTATUS NTAPI NtOpenFile(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT
 #endif
 }
 
-static int GetChar(void)
+/* Async keyboard plumbing.
+ *
+ * autochk's AUTOCHECK_MESSAGE::IsKeyPressed opens \Device\KeyboardClass0..63,
+ * issues async NtReadFile on each (with an Event handle for completion),
+ * then NtWaitForMultipleObjects on the events with a 100ms timeout in a
+ * 10s countdown loop. unix_open maps Class0/1 to fileno(stdin).
+ *
+ * If we read stdin synchronously inside NtReadFile we'd block the whole
+ * countdown on a single getchar(), so the request is parked in
+ * g_stdin_kbd and STATUS_PENDING is returned. nl_kbd_pump() is called
+ * each pass through the wait loops in sync.c — when stdin has a byte it
+ * fills the parked buffer, signals the parked Event, and the autochk
+ * wait wakes up.
+ *
+ * Note autochk only reacts to KEY_BREAK (key release), so we always
+ * report the byte as a release event.
+ */
+static struct {
+    pthread_mutex_t mu;
+    int             active;
+    int             unit_id;
+    PVOID           buffer;
+    PIO_STATUS_BLOCK iosb;
+    HANDLE          event;
+    int             fd;
+} g_stdin_kbd = {
+    .mu = PTHREAD_MUTEX_INITIALIZER,
+};
+
+#ifndef _WIN32
+static int g_stdin_raw_set = 0;
+static struct termios g_stdin_saved_tty;
+
+static void restore_stdin_tty(void)
 {
-#if defined(__linux)
-    int c, fd = fileno(stdin);
-    static struct termios oldt, newt;
-    tcgetattr(fd, &oldt);
-    newt = oldt;
-
-    newt.c_lflag &= ~(ICANON | ECHO);
-    newt.c_cc[VTIME] = 10;
-    newt.c_cc[VMIN] = 0;
-    tcsetattr(fd, TCSANOW, &newt);
-
-    c = getchar();
-
-    tcsetattr(fd, TCSANOW, &oldt);
-
-    return c;
-#else
-    return EOF;
-#endif
+    if (g_stdin_raw_set == 1)
+        tcsetattr(fileno(stdin), TCSANOW, &g_stdin_saved_tty);
 }
+
+static void enable_stdin_raw_once(void)
+{
+    int fd;
+    struct termios raw;
+
+    if (g_stdin_raw_set)
+        return;
+
+    fd = fileno(stdin);
+    if (!isatty(fd))
+    {
+        g_stdin_raw_set = 2;        /* nothing to restore — pipe/redirect */
+        return;
+    }
+    if (tcgetattr(fd, &g_stdin_saved_tty) < 0)
+    {
+        g_stdin_raw_set = 2;
+        return;
+    }
+    raw = g_stdin_saved_tty;
+    raw.c_lflag &= ~(ICANON | ECHO);
+    raw.c_cc[VMIN]  = 0;
+    raw.c_cc[VTIME] = 0;
+    tcsetattr(fd, TCSANOW, &raw);
+    g_stdin_raw_set = 1;
+    atexit(restore_stdin_tty);
+}
+
+static void deliver_kbd_event(int unit_id, unsigned char ch,
+                              PVOID buffer, PIO_STATUS_BLOCK iosb, HANDLE event)
+{
+    KEYBOARD_INPUT_DATA *k = (KEYBOARD_INPUT_DATA *)buffer;
+
+    k->UnitId   = unit_id;
+    k->MakeCode = AsciiToScan[ch];
+    k->Flags    = KEY_BREAK;
+    iosb->Information = sizeof(KEYBOARD_INPUT_DATA);
+    iosb->u.Status    = STATUS_SUCCESS;
+    if (event)
+        NtSetEvent(event, NULL);
+}
+
+void nl_kbd_pump(void)
+{
+    struct pollfd pfd;
+    unsigned char ch;
+    int           uid, fd;
+    PVOID         buf;
+    PIO_STATUS_BLOCK iosb;
+    HANDLE        event;
+
+    pthread_mutex_lock(&g_stdin_kbd.mu);
+    if (!g_stdin_kbd.active)
+    {
+        pthread_mutex_unlock(&g_stdin_kbd.mu);
+        return;
+    }
+    fd = g_stdin_kbd.fd;
+    pthread_mutex_unlock(&g_stdin_kbd.mu);
+
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    if (poll(&pfd, 1, 0) <= 0 || !(pfd.revents & POLLIN))
+        return;
+    if (read(fd, &ch, 1) != 1)
+        return;
+
+    pthread_mutex_lock(&g_stdin_kbd.mu);
+    if (!g_stdin_kbd.active)
+    {
+        /* canceled between the poll and now — drop the byte */
+        pthread_mutex_unlock(&g_stdin_kbd.mu);
+        return;
+    }
+    uid   = g_stdin_kbd.unit_id;
+    buf   = g_stdin_kbd.buffer;
+    iosb  = g_stdin_kbd.iosb;
+    event = g_stdin_kbd.event;
+    g_stdin_kbd.active = 0;
+    pthread_mutex_unlock(&g_stdin_kbd.mu);
+
+    deliver_kbd_event(uid, ch, buf, iosb, event);
+}
+#else
+void nl_kbd_pump(void) { }
+#endif
 
 NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRoutine, PVOID ApcContext,
     PIO_STATUS_BLOCK IoStatusBlock, PVOID Buffer, ULONG Length, PLARGE_INTEGER ByteOffset, PULONG Key)
@@ -398,29 +508,48 @@ NTSTATUS NTAPI NtReadFile(HANDLE FileHandle, HANDLE Event, PIO_APC_ROUTINE ApcRo
     Log("ntdll.NtReadFile(\"%s\", %p, %d, %lld)\n", strhandle(FileHandle), Buffer, Length,
         ByteOffset ? ByteOffset->QuadPart : 0);
 
+#ifndef _WIN32
     if (FileHandle->file.fh == fileno(stdin))
     {
-        int c;
-        KEYBOARD_INPUT_DATA *KeyboardData;
-
+        char *name;
+        int   uid;
+        struct pollfd pfd;
+        unsigned char ch;
 
         if (Length != sizeof(KEYBOARD_INPUT_DATA))
             return (IoStatusBlock->u.Status = STATUS_INVALID_PARAMETER);
 
-        if ((c = GetChar()) != EOF)
-        {
-            char *name = strhandle(FileHandle);
-            KeyboardData = (KEYBOARD_INPUT_DATA *) Buffer;
-            KeyboardData->UnitId = (strlen(name) >= 24) ? name[23] - '0' : 0;
-            KeyboardData->MakeCode = AsciiToScan[c];
-            KeyboardData->Flags = KEY_MAKE;
-            IoStatusBlock->Information = Length;
-        }
-        else
-            IoStatusBlock->Information = 0;
+        enable_stdin_raw_once();
 
-        return (IoStatusBlock->u.Status = STATUS_SUCCESS);
+        name = strhandle(FileHandle);
+        uid = (strlen(name) >= 24) ? name[23] - '0' : 0;
+
+        /* Fast path: byte already in the tty buffer — complete inline. */
+        pfd.fd = FileHandle->file.fh;
+        pfd.events = POLLIN;
+        if (poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN)
+            && read(FileHandle->file.fh, &ch, 1) == 1)
+        {
+            deliver_kbd_event(uid, ch, Buffer, IoStatusBlock, Event);
+            return STATUS_SUCCESS;
+        }
+
+        /* No data — park the request. The pump in the wait loop will
+         * complete it once stdin has a byte. */
+        pthread_mutex_lock(&g_stdin_kbd.mu);
+        g_stdin_kbd.active  = 1;
+        g_stdin_kbd.unit_id = uid;
+        g_stdin_kbd.buffer  = Buffer;
+        g_stdin_kbd.iosb    = IoStatusBlock;
+        g_stdin_kbd.event   = Event;
+        g_stdin_kbd.fd      = FileHandle->file.fh;
+        pthread_mutex_unlock(&g_stdin_kbd.mu);
+
+        IoStatusBlock->u.Status    = STATUS_PENDING;
+        IoStatusBlock->Information = 0;
+        return STATUS_PENDING;
     }
+#endif
 
     if (!IsValidHandle(FileHandle->file.fh))
         return (IoStatusBlock->u.Status = STATUS_INVALID_HANDLE);
@@ -587,6 +716,34 @@ NTSTATUS NTAPI NtCancelIoFile(HANDLE FileHandle, PIO_STATUS_BLOCK IoStatusBlock)
 
     if (!IsValidHandle(FileHandle->file.fh))
         return (IoStatusBlock->u.Status = STATUS_INVALID_HANDLE);
+
+#ifndef _WIN32
+    /* Drop a parked stdin keyboard read so the pump doesn't write into
+     * a buffer the caller is about to free. autochk does this in the
+     * IsKeyPressed cleanup path. */
+    if (FileHandle->file.fh == fileno(stdin))
+    {
+        HANDLE event = NULL;
+        PIO_STATUS_BLOCK parked = NULL;
+
+        pthread_mutex_lock(&g_stdin_kbd.mu);
+        if (g_stdin_kbd.active)
+        {
+            parked = g_stdin_kbd.iosb;
+            event  = g_stdin_kbd.event;
+            g_stdin_kbd.active = 0;
+        }
+        pthread_mutex_unlock(&g_stdin_kbd.mu);
+
+        if (parked)
+        {
+            parked->Information = 0;
+            parked->u.Status    = STATUS_CANCELLED;
+            if (event)
+                NtSetEvent(event, NULL);
+        }
+    }
+#endif
 
     IoStatusBlock->u.Status = STATUS_CANCELLED;
     return STATUS_SUCCESS;

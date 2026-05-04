@@ -62,6 +62,7 @@ typedef LONG NTSTATUS;
 #define STATUS_WAIT_0                   0x00000000
 #define STATUS_ALERTED                  0x00000101
 #define STATUS_TIMEOUT                  0x00000102
+#define STATUS_PENDING                  0x00000103
 
 #define RTL_QUERY_REGISTRY_NOEXPAND     0x00000010
 #define RTL_QUERY_REGISTRY_DIRECT       0x00000020
