@@ -241,6 +241,7 @@ BOOLEAN NTAPI RtlFreeHeap(PVOID HeapHandle, ULONG Flags, PVOID MemoryPointer);
 /* crt */
 SIZE_T CDECL rpl_wcslen(LPCWSTR str);
 LPWSTR CDECL rpl_wcscat(LPWSTR dest, LPCWSTR src);
+LPWSTR CDECL rpl_wcscpy(LPWSTR dest, LPCWSTR src);
 
 /* rtl */
 #define TICKSPERSEC         10000000ULL

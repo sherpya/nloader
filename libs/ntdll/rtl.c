@@ -450,7 +450,7 @@ NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreIn
                 Buffer[count++] = L'\r';
 #ifndef _WIN32
                 // clear the line on unix
-                rpl_wcscat(&Buffer[count], L"\x1b[K");
+                rpl_wcscpy(&Buffer[count], L"\x1b[K");
                 count += 3;
 #endif
                 break;
@@ -480,7 +480,12 @@ NTSTATUS NTAPI RtlFormatMessage(LPWSTR Message, UCHAR MaxWidth, BOOLEAN IgnoreIn
                 }
                 argnum--;
                 arg = get_arg(argnum, Arguments, ArgumentIsArray);
-                rpl_wcscat(&Buffer[count], arg);
+                /* Buffer is reused across calls (same caller storage) and
+                 * count points to the next write slot — wcscat would scan
+                 * past stale bytes from a previous formatted message before
+                 * dropping the arg, leaking those bytes into the output.
+                 * Copy directly at the cursor instead. */
+                rpl_wcscpy(&Buffer[count], arg);
                 count += rpl_wcslen(arg);
                 /* MS positional may be followed by `!printf-spec!` (e.g.
                  * `%1!d!`, `%2!I64x!`, `%3!02d!`). autochk's
