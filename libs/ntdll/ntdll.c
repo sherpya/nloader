@@ -177,6 +177,12 @@ NTSTATUS NTAPI NtDisplayString(PUNICODE_STRING String)
     Log("ntdll.DisplayString(String=%p, Buffer=%p) \"%s\"\n", String, String->Buffer, StringA);
 
     fputs(StringA, stdout);
+    /* autochk's countdown / progress messages end with %r (CR only).
+     * stdio's line-buffered mode flushes on \n, not on \r, so without
+     * an explicit flush these messages sit in the buffer until the
+     * next \n-terminated string appears — the user sees a frozen
+     * terminal during the whole countdown / scan. */
+    fflush(stdout);
 
     return STATUS_SUCCESS;
 }
