@@ -135,10 +135,9 @@ Note that this can result in a lot of spam, expecially if you set NLOG=all.
 
 References:
 
- - [Chkdsk, ChkNTFS, and Autochk ](http://www.infocellar.com/winxp/chkdsk-and-autochk.htm)
- - [Using Chkntfs to Prevent Autochk from Running](http://windows-xp-dox.net/MS.Press-Microsoft.Windows.XP1/prkd_tro_rgwn.htm)
- - [Description of Enhanced Chkdsk, Autochk, and Chkntfs Tools in Windows 2000](http://support.microsoft.com/kb/218461)
- - [CHKNTFS.EXE: What You Can Use It For](http://support.microsoft.com/kb/160963/EN-US/)
+ - [Chkdsk, ChkNTFS, and Autochk ](https://web.archive.org/web/20180307063958/http://www.infocellar.com/winxp/chkdsk-and-autochk.htm)
+ - [Description of Enhanced Chkdsk, Autochk, and Chkntfs Tools in Windows 2000](https://web.archive.org/web/20150111022620/http://support.microsoft.com/kb/218461)
+ - [CHKNTFS.EXE: What You Can Use It For](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/chkntfs)
 
 <pre>
 autochk.exe [switches] volume | * (* = all volumes, it queries global directory)
